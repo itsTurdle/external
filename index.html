@@ -1,0 +1,1972 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate, max-age=0">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <meta http-equiv="Last-Modified" content="0">
+    <meta http-equiv="If-Modified-Since" content="0">
+    <meta http-equiv="Cache-Control" content="private, no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="-1">
+    <title>Block Editor - Roblox API</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    
+    <script src="https://unpkg.com/blockly@10.4.3/blockly.min.js"></script>
+    <script src="https://unpkg.com/blockly@10.4.3/javascript_compressed.js"></script>
+    <script>
+        // Unique build tag changes each edit to force WebView2 to see file difference
+        window.__BUILD_TAG = 'build-20250909-' + Math.random().toString(36).slice(2,9);
+    </script>
+    <script>
+        const loadTime = new Date().toISOString();
+        console.log('HTML loaded at:', loadTime);
+        document.title = 'Block Editor - Roblox API ' + window.__BUILD_TAG;
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            const output = document.getElementById('output');
+            if (output) {
+                output.textContent = '// ROBLOX API - Page loaded at: ' + loadTime + '\n// Output will appear here\n';
+            }
+            
+            console.log('Checking Roblox block definitions...');
+            console.log('get_service block:', Blockly.Blocks['get_service'] ? 'FOUND' : 'MISSING');
+            console.log('find_first_child block:', Blockly.Blocks['find_first_child'] ? 'FOUND' : 'MISSING');
+            console.log('RobloxAPI object:', window.RobloxAPI ? 'FOUND' : 'MISSING');
+        });
+    </script>
+    <script>
+        (function(){
+            if (window.chrome && window.chrome.webview){
+                try {
+                    window.chrome.webview.addEventListener('message', function(e){
+                        try { window.dispatchEvent(new MessageEvent('message',{ data: e.data })); } catch(_) {}
+                    });
+                } catch(_) {}
+            }
+        })();
+    </script>
+    
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a1a 0%, #0d1117 100%);
+            color: #ffffff;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        .main-container {
+            display: flex;
+            height: 100vh;
+            gap: 4px;
+            padding: 4px;
+        }
+        
+        .editor-section {
+            flex: 2.2;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            overflow: hidden;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+            position: relative;
+            z-index: 1;
+        }
+        
+        .output-section {
+            flex: 0 1 560px;
+            max-width: 640px;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+            position: relative;
+            z-index: 1000;
+            pointer-events: auto;
+            overflow-x: auto;
+        }
+        
+        .button-container {
+            pointer-events: auto !important;
+        }
+        
+        .button-container button {
+            pointer-events: auto !important;
+            position: relative !important;
+        }
+        
+        .blocklyWidgetDiv, .blocklyTooltipDiv, .blocklyDropDownDiv {
+            z-index: 999 !important;
+        }
+    .blocklyMainBackground { fill:#161b22 !important; }
+    .blocklySvg { background:#0d1117 !important; }
+    #blocklyDiv { background:#0d1117 !important; }
+    
+    
+    :root { --bg-workspace:#141414; --bg-toolbox:#292929; --bg-flyout:#3d3d3d; }
+    .blocklySvg { background:var(--bg-workspace)!important; }
+    .blocklyMainBackground { fill:var(--bg-workspace)!important; }
+    .blocklyToolboxDiv, .blocklyToolboxContents, .blocklyTree { background:var(--bg-toolbox)!important; }
+    .blocklyToolboxDiv { border-right:1px solid #1e1e1e !important; }
+    .blocklyFlyout, .blocklyFlyoutBackground { background:var(--bg-flyout)!important; fill:var(--bg-flyout)!important; }
+    .blocklyFlyout { box-shadow:0 0 0 1px #2a2a2a, 0 4px 12px rgba(0,0,0,0.55)!important; }
+    .blocklyFlyout .blocklyText { fill:#f0f6fc!important; }
+    .blocklyTreeRow { transition:background .15s ease; }
+    .blocklyTreeRow:hover { background:#182027!important; }
+    .blocklyTreeRow.blocklyTreeSelected { background:#1a242c!important; }
+    
+    .blocklyToolboxDiv { background:#161b22 !important; border-right:1px solid #222 !important; }
+    .blocklyTreeRow { background:transparent !important; color:#f0f6fc !important; }
+    .blocklyTreeRow:hover { background:#21262d !important; }
+    .blocklyTreeRow.blocklyTreeSelected { background:#238636 !important; color:#fff !important; }
+    .blocklyFlyout { background:#161b22 !important; }
+    .blocklyFlyoutBackground { fill:#161b22 !important; }
+    .blocklyFlyoutLabelText { fill:#f0f6fc !important; }
+    .blocklyFlyoutButton .blocklyText { fill:#f0f6fc !important; }
+    .blocklyScrollbarHandle { fill:#30363d !important; }
+    .blocklyScrollbarBackground { fill:rgba(255,255,255,0.05) !important; }
+    .blocklyWidgetDiv .goog-menu { background:#161b22 !important; color:#f0f6fc !important; }
+    .blocklyWidgetDiv .goog-menuitem { color:#f0f6fc !important; }
+    .blocklyWidgetDiv .goog-menuitem-hover, .blocklyWidgetDiv .goog-menuitem-highlight { background:#238636 !important; color:#fff !important; }
+    .blocklyToolboxContents, .blocklyTree { background:#161b22 !important; }
+    .blocklyToolboxCategory .blocklyTreeRow { border-left:4px solid transparent !important; }
+    .blocklyToolboxCategory.selected .blocklyTreeRow { border-left:4px solid #00d4aa !important; background:#0d1117 !important; }
+    .blocklyDropDownDiv { background:#161b22 !important; color:#f0f6fc !important; border:1px solid #30363d !important; }
+    .blocklyDropDownDiv .blocklyDropDownContent { background:#161b22 !important; }
+    .blocklyDropDownDiv .goog-menuitem { color:#f0f6fc !important; }
+    .blocklyDropDownDiv .goog-menuitem-highlight, .blocklyDropDownDiv .goog-menuitem-hover { background:#238636 !important; color:#fff !important; }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <div class="editor-section">
+            <div id="blocklyDiv" style="height:100%; width:100%;"></div>
+        </div>
+        <div class="output-section">
+                <div id="versionBanner" style="background:#00d4aa; color:#000; padding:4px; border-radius:4px; margin-bottom:4px; font-size:10px; font-weight:bold; text-align:center;">
+                    🎮 ROBLOX API v1.1.1
+                </div>
+            <div class="code-preview" style="flex:1; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:6px; padding:0; overflow:hidden; font-family:Consolas,monospace; font-size:11px; position:relative;">
+                <div class="code-header" style="font-weight:600; margin:6px; margin-bottom:2px; font-size:10px; color:#00d4aa;">Generated / Editable Code</div>
+                <div class="code-editor" style="position:relative; height:calc(100% - 22px);">
+                    <pre style="margin:0; padding:0; min-height:100%; background:transparent;">
+                        <code id="codeHighlight" class="language-javascript hljs" style="display:block; padding:6px; white-space:pre; overflow:auto; background:transparent;"></code>
+                    </pre>
+                    <textarea id="codeInput" spellcheck="false" style="position:absolute; inset:0; width:100%; height:100%; margin:0; padding:6px; background:transparent; color:transparent; caret-color:#f0f6fc; border:none; outline:none; resize:none; line-height:1.3; font-family:Consolas,monospace; font-size:11px;">// Generated code will appear here</textarea>
+                </div>
+            </div>
+            <div class="output-display" style="flex:1; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:6px; padding:6px; overflow:auto; font-family:Consolas,monospace; font-size:11px; margin-top:4px;">
+                <div class="output-header" style="font-weight:600; margin-bottom:2px; font-size:10px; color:#00d4aa;">Output</div>
+                <div id="output" style="margin:0; white-space:pre-wrap; line-height:1.3;">// Output will appear here</div>
+            </div>
+            <div class="button-container" style="margin-top:4px; display:flex; gap:4px; position:relative; z-index:1001; pointer-events:auto;">
+                <button id="generateBtn" style="flex:1; background:#21262d; color:#f0f6fc; border:1px solid #30363d; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:11px; position:relative; z-index:1002; pointer-events:auto;">Code</button>
+                <button id="runBtn" style="flex:1; background:#238636; color:#f0f6fc; border:1px solid #2ea043; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:11px; position:relative; z-index:1002; pointer-events:auto;">Run</button>
+                <button id="stopBtn" style="background:#da3633; color:#f0f6fc; border:1px solid #f85149; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:11px; position:relative; z-index:1002; pointer-events:auto; display:none;">Stop</button>
+                <button id="clearBtn" style="background:#656d76; color:#f0f6fc; border:1px solid #8b949e; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:11px; position:relative; z-index:1002; pointer-events:auto;">Clear</button>
+                <button id="refreshBtn" style="background:#656d76; color:#f0f6fc; border:1px solid #8b949e; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:11px; position:relative; z-index:1002; pointer-events:auto;" title="Force refresh page">↻</button>
+            </div>
+        </div>
+    </div>
+    <script>
+    window.__APP_VERSION = '1.1.2';
+        const vb = document.getElementById('versionBanner');
+        if (vb) vb.textContent = '🎮 ROBLOX API v' + window.__APP_VERSION;
+    </script>
+    <script>
+        // Script Generator Loaded
+        
+        // Add manual refresh capability with F5 or Ctrl+R
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'F5' || (e.ctrlKey && e.key === 'r')) {
+                e.preventDefault();
+                location.reload(true); // Force reload
+            }
+        });
+        
+        // Debug: Log all clicks to see what's intercepting them
+        document.addEventListener('click', function(e) {
+            console.log('Click detected on:', e.target, 'at coordinates:', e.clientX, e.clientY);
+        }, true);
+        
+        document.addEventListener('DOMContentLoaded', ()=>{
+            const genBtn = document.getElementById('generateBtn');
+            const runBtn = document.getElementById('runBtn');
+            const stopBtn = document.getElementById('stopBtn');
+            const clearBtn = document.getElementById('clearBtn');
+            const refreshBtn = document.getElementById('refreshBtn');
+            const codeInput = document.getElementById('codeInput');
+            const codeHighlight = document.getElementById('codeHighlight');
+            const updateHighlight = (text) => {
+                if (!codeHighlight) return;
+                codeHighlight.textContent = text ?? '';
+                if (window.hljs) {
+                    try { hljs.highlightElement(codeHighlight); } catch(_){}
+                }
+            };
+            
+            // Debug: Log button elements to ensure they exist
+            console.log('Buttons found:', {genBtn, runBtn, stopBtn, clearBtn, refreshBtn});
+            
+            // Ensure buttons are properly configured
+            [genBtn, runBtn, stopBtn, clearBtn, refreshBtn].forEach((btn, index) => {
+                if (btn) {
+                    btn.style.pointerEvents = 'auto';
+                    btn.style.position = 'relative';
+                    btn.style.zIndex = '1002';
+                    
+                    // Add debug event listeners
+                    btn.addEventListener('mouseenter', () => console.log(`Button ${index} mouse enter`));
+                    btn.addEventListener('mouseleave', () => console.log(`Button ${index} mouse leave`));
+                    btn.addEventListener('mousedown', () => console.log(`Button ${index} mouse down`));
+                    btn.addEventListener('mouseup', () => console.log(`Button ${index} mouse up`));
+                }
+            });
+
+            function generateCode(){
+                // Generate JS from workspace with proper init/finish
+                const ws = Blockly.getMainWorkspace();
+                Blockly.JavaScript.init(ws);
+                let code = Blockly.JavaScript.workspaceToCode(ws);
+                code = Blockly.JavaScript.finish(code);
+                if (codeInput) {
+                    codeInput.value = code || '// (empty)';
+                    updateHighlight(codeInput.value);
+                    __lastGeneratedCode = codeInput.value;
+                    __userEditedSinceSync = false;
+                }
+                return code;
+            }
+
+            // Remove existing event listeners to prevent duplicates
+            genBtn.onclick = null;
+            runBtn.onclick = null;
+            stopBtn.onclick = null;
+            clearBtn.onclick = null;
+
+            genBtn.addEventListener('click', (e)=>{
+                console.log('Generate button clicked');
+                e.preventDefault();
+                e.stopPropagation();
+                generateCode();
+            });
+
+            runBtn.addEventListener('click', (e)=>{
+                console.log('Run button clicked');
+                e.preventDefault();
+                e.stopPropagation();
+                if (!isRunning) {
+                    runBtn.style.display = 'none';
+                    stopBtn.style.display = 'block';
+                    runCode();
+                } else {
+                    hynthera_output('⚠️ Code is already running!');
+                }
+            });
+
+            // Hook up live highlighting + scroll sync
+            if (codeInput && codeHighlight) {
+                const syncScroll = () => { codeHighlight.scrollTop = codeInput.scrollTop; codeHighlight.scrollLeft = codeInput.scrollLeft; };
+                codeInput.addEventListener('scroll', syncScroll);
+                codeInput.addEventListener('input', ()=>{ updateHighlight(codeInput.value); });
+                updateHighlight(codeInput.value || '');
+            }
+
+            stopBtn.addEventListener('click', (e)=>{
+                console.log('Stop button clicked');
+                e.preventDefault();
+                e.stopPropagation();
+                shouldStop = true;
+                isRunning = false;
+                runBtn.style.display = 'block';
+                stopBtn.style.display = 'none';
+                hynthera_output('🛑 Execution stopped by user');
+            });
+
+            clearBtn.addEventListener('click', (e)=>{
+                console.log('Clear button clicked');
+                e.preventDefault();
+                e.stopPropagation();
+                clearOutput();
+            });
+
+            if (refreshBtn) {
+                refreshBtn.addEventListener('click', ()=>{
+                    location.reload(true); // Force reload
+                });
+            }
+        });
+        const darkTheme = Blockly.Theme.defineTheme('darkMode', {
+            'base': Blockly.Themes.Dark,
+            'componentStyles': {
+                'workspaceBackground': '#0d1117',
+                'toolboxBackground': '#161b22',
+                'toolboxForeground': '#f0f6fc',
+                'flyoutBackground': '#21262d',
+                'flyoutForeground': '#f0f6fc',
+                'scrollbarColour': '#30363d',
+                'insertionMarker': '#238636',
+                'markerColour': '#f85149',
+                'cursorColour': '#f0f6fc'
+            },
+            'blockStyles': {
+                'logic_blocks': {
+                    'colourPrimary': '#2f81f7',
+                    'colourSecondary': '#1f6feb',
+                    'colourTertiary': '#0969da'
+                },
+                'loop_blocks': {
+                    'colourPrimary': '#2ea043',
+                    'colourSecondary': '#238636',
+                    'colourTertiary': '#1a7f37'
+                },
+                'math_blocks': {
+                    'colourPrimary': '#8b5cf6',
+                    'colourSecondary': '#7c3aed',
+                    'colourTertiary': '#6d28d9'
+                },
+                'text_blocks': {
+                    'colourPrimary': '#fb923c',
+                    'colourSecondary': '#f97316',
+                    'colourTertiary': '#ea580c'
+                },
+                'variable_blocks': {
+                    'colourPrimary': '#f472b6',
+                    'colourSecondary': '#ec4899',
+                    'colourTertiary': '#db2777'
+                },
+                'procedure_blocks': {
+                    'colourPrimary': '#a855f7',
+                    'colourSecondary': '#9333ea',
+                    'colourTertiary': '#7c2d12'
+                },
+                'roblox_blocks': {
+                    'colourPrimary': '#00d4aa',
+                    'colourSecondary': '#00b894',
+                    'colourTertiary': '#00a085'
+                },
+                'event_blocks': {
+                    'colourPrimary': '#fbbf24',
+                    'colourSecondary': '#f59e0b',
+                    'colourTertiary': '#d97706'
+                }
+            }
+        });
+
+        // Define custom blocks BEFORE creating workspace
+        // Define Event Blocks
+        Blockly.Blocks['when_start_clicked'] = {
+            init: function() {
+                this.appendDummyInput()
+                    .appendField("🚩 when start clicked");
+                this.appendStatementInput("DO")
+                    .setCheck(null);
+                this.setColour('#ffab19');
+                this.setTooltip("Runs when the start button is clicked");
+            }
+        };
+
+        Blockly.JavaScript['when_start_clicked'] = function(block) {
+            var statements = Blockly.JavaScript.statementToCode(block, 'DO');
+            return '// Event: when start clicked\n' + statements;
+        };
+
+        // Output Blocks
+    Blockly.Blocks['print_output'] = {
+            init: function() {
+                this.appendValueInput("TEXT")
+                    .setCheck(null)
+            .appendField("print");
+                this.setPreviousStatement(true, null);
+                this.setNextStatement(true, null);
+                this.setColour('#fd79a8');
+                this.setTooltip("Print text to the console");
+            }
+        };
+
+        Blockly.JavaScript['print_output'] = function(block) {
+            var text = Blockly.JavaScript.valueToCode(block, 'TEXT', Blockly.JavaScript.ORDER_ATOMIC) || '""';
+                return 'print(' + text + ');\n';
+        };
+
+    Blockly.Blocks['warn_output'] = {
+            init: function() {
+                this.appendValueInput("TEXT")
+                    .setCheck(null)
+            .appendField("warn");
+                this.setPreviousStatement(true, null);
+                this.setNextStatement(true, null);
+                this.setColour('#fd79a8');
+                this.setTooltip("Print a warning to the console");
+            }
+        };
+
+        Blockly.JavaScript['warn_output'] = function(block) {
+            var text = Blockly.JavaScript.valueToCode(block, 'TEXT', Blockly.JavaScript.ORDER_ATOMIC) || '""';
+        return 'warn(' + text + ');\n';
+        };
+
+        // Roblox API Blocks - MOVED HERE TO BE DEFINED BEFORE WORKSPACE CREATION
+        
+        // Get Game Service Block
+        Blockly.Blocks['get_service'] = {
+            init: function() {
+                this.appendDummyInput()
+                    .appendField("🎮 get service")
+                    .appendField(new Blockly.FieldDropdown([
+                        ["Workspace", "Workspace"],
+                        ["Players", "Players"],
+                        ["Lighting", "Lighting"],
+                        ["ReplicatedStorage", "ReplicatedStorage"],
+                        ["StarterGui", "StarterGui"],
+                        ["StarterPack", "StarterPack"],
+                        ["StarterPlayer", "StarterPlayer"],
+                        ["TweenService", "TweenService"],
+                        ["RunService", "RunService"],
+                        ["UserInputService", "UserInputService"]
+                    ]), "SERVICE");
+                this.setOutput(true, "Instance");
+                this.setColour('#00d4aa');
+                this.setTooltip("Get a Roblox service");
+            }
+        };
+
+        Blockly.JavaScript['get_service'] = function(block) {
+            var service = block.getFieldValue('SERVICE');
+            return ['await RobloxAPI.getService("' + service + '")', Blockly.JavaScript.ORDER_FUNCTION_CALL];
+        };
+
+        // Find First Child Block
+        Blockly.Blocks['find_first_child'] = {
+            init: function() {
+                this.appendValueInput("PARENT")
+                    .setCheck("Instance")
+                    .appendField("🔍 find first child");
+                this.appendValueInput("NAME")
+                    .setCheck("String")
+                    .appendField("named");
+                this.setOutput(true, "Instance");
+                this.setColour('#00d4aa');
+                this.setTooltip("Find first child by name");
+            }
+        };
+
+        Blockly.JavaScript['find_first_child'] = function(block) {
+            var parent = Blockly.JavaScript.valueToCode(block, 'PARENT', Blockly.JavaScript.ORDER_ATOMIC) || 'null';
+            var name = Blockly.JavaScript.valueToCode(block, 'NAME', Blockly.JavaScript.ORDER_ATOMIC) || '""';
+            return ['await RobloxAPI.findFirstChild(' + parent + ', ' + name + ')', Blockly.JavaScript.ORDER_FUNCTION_CALL];
+        };
+
+        // Find First Child of Class Block
+        Blockly.Blocks['find_first_child_of_class'] = {
+            init: function() {
+                this.appendValueInput("PARENT")
+                    .setCheck("Instance")
+                    .appendField("🔍 find first child of class");
+                this.appendValueInput("CLASS")
+                    .setCheck("String")
+                    .appendField("class");
+                this.setOutput(true, "Instance");
+                this.setColour('#00d4aa');
+                this.setTooltip("Find first child by class name");
+            }
+        };
+
+        Blockly.JavaScript['find_first_child_of_class'] = function(block) {
+            var parent = Blockly.JavaScript.valueToCode(block, 'PARENT', Blockly.JavaScript.ORDER_ATOMIC) || 'null';
+            var className = Blockly.JavaScript.valueToCode(block, 'CLASS', Blockly.JavaScript.ORDER_ATOMIC) || '""';
+            return ['await RobloxAPI.findFirstChildOfClass(' + parent + ', ' + className + ')', Blockly.JavaScript.ORDER_FUNCTION_CALL];
+        };
+
+        // Get Children Block
+        Blockly.Blocks['get_children'] = {
+            init: function() {
+                this.appendValueInput("PARENT")
+                    .setCheck("Instance")
+                    .appendField("📦 get children of");
+                this.setOutput(true, "Array");
+                this.setColour('#00d4aa');
+                this.setTooltip("Get all children of an instance");
+            }
+        };
+
+        Blockly.JavaScript['get_children'] = function(block) {
+            var parent = Blockly.JavaScript.valueToCode(block, 'PARENT', Blockly.JavaScript.ORDER_ATOMIC) || 'null';
+            return ['await RobloxAPI.getChildren(' + parent + ')', Blockly.JavaScript.ORDER_FUNCTION_CALL];
+        };
+
+        // Get Descendants Block
+        Blockly.Blocks['get_descendants'] = {
+            init: function() {
+                this.appendValueInput("PARENT")
+                    .setCheck("Instance")
+                    .appendField("🌲 get descendants of");
+                this.setOutput(true, "Array");
+                this.setColour('#00d4aa');
+                this.setTooltip("Get all descendants of an instance");
+            }
+        };
+
+        Blockly.JavaScript['get_descendants'] = function(block) {
+            var parent = Blockly.JavaScript.valueToCode(block, 'PARENT', Blockly.JavaScript.ORDER_ATOMIC) || 'null';
+            return ['await RobloxAPI.getDescendants(' + parent + ')', Blockly.JavaScript.ORDER_FUNCTION_CALL];
+        };
+
+        // Get Instance Name Block
+        Blockly.Blocks['get_instance_name'] = {
+            init: function() {
+                this.appendValueInput("INSTANCE")
+                    .setCheck("Instance")
+                    .appendField("🏷️ name of");
+                this.setOutput(true, "String");
+                this.setColour('#00d4aa');
+                this.setTooltip("Get the name of an instance");
+            }
+        };
+
+        Blockly.JavaScript['get_instance_name'] = function(block) {
+            var instance = Blockly.JavaScript.valueToCode(block, 'INSTANCE', Blockly.JavaScript.ORDER_ATOMIC) || 'null';
+            return ['await RobloxAPI.getName(' + instance + ')', Blockly.JavaScript.ORDER_FUNCTION_CALL];
+        };
+
+        // Get Instance Class Block
+        Blockly.Blocks['get_instance_class'] = {
+            init: function() {
+                this.appendValueInput("INSTANCE")
+                    .setCheck("Instance")
+                    .appendField("🏗️ class of");
+                this.setOutput(true, "String");
+                this.setColour('#00d4aa');
+                this.setTooltip("Get the class name of an instance");
+            }
+        };
+
+        Blockly.JavaScript['get_instance_class'] = function(block) {
+            var instance = Blockly.JavaScript.valueToCode(block, 'INSTANCE', Blockly.JavaScript.ORDER_ATOMIC) || 'null';
+            return ['await RobloxAPI.getClass(' + instance + ')', Blockly.JavaScript.ORDER_FUNCTION_CALL];
+        };
+
+        // Get Local Player Block
+        Blockly.Blocks['get_local_player'] = {
+            init: function() {
+                this.appendDummyInput()
+                    .appendField("👤 local player");
+                this.setOutput(true, "Instance");
+                this.setColour('#00d4aa');
+                this.setTooltip("Get the local player");
+            }
+        };
+
+        Blockly.JavaScript['get_local_player'] = function(block) {
+            return ['await RobloxAPI.getLocalPlayer()', Blockly.JavaScript.ORDER_FUNCTION_CALL];
+        };
+
+        // Get Player Character Block
+        Blockly.Blocks['get_character'] = {
+            init: function() {
+                this.appendValueInput("PLAYER")
+                    .setCheck("Instance")
+                    .appendField("🚶 character of");
+                this.setOutput(true, "Instance");
+                this.setColour('#00d4aa');
+                this.setTooltip("Get the character of a player");
+            }
+        };
+
+        Blockly.JavaScript['get_character'] = function(block) {
+            var player = Blockly.JavaScript.valueToCode(block, 'PLAYER', Blockly.JavaScript.ORDER_ATOMIC) || 'null';
+            return ['await RobloxAPI.getCharacter(' + player + ')', Blockly.JavaScript.ORDER_FUNCTION_CALL];
+        };
+
+        // Get Position Block
+        Blockly.Blocks['get_position'] = {
+            init: function() {
+                this.appendValueInput("INSTANCE")
+                    .setCheck("Instance")
+                    .appendField("📍 position of");
+                this.setOutput(true, "Vector3");
+                this.setColour('#00d4aa');
+                this.setTooltip("Get the position of an instance");
+            }
+        };
+
+        Blockly.JavaScript['get_position'] = function(block) {
+            var instance = Blockly.JavaScript.valueToCode(block, 'INSTANCE', Blockly.JavaScript.ORDER_ATOMIC) || 'null';
+            return ['await RobloxAPI.getPosition(' + instance + ')', Blockly.JavaScript.ORDER_FUNCTION_CALL];
+        };
+
+        // Set Position Block
+        Blockly.Blocks['set_position'] = {
+            init: function() {
+                this.appendValueInput("INSTANCE")
+                    .setCheck("Instance")
+                    .appendField("📍 set position of");
+                this.appendValueInput("X")
+                    .setCheck("Number")
+                    .appendField("to X:");
+                this.appendValueInput("Y")
+                    .setCheck("Number")
+                    .appendField("Y:");
+                this.appendValueInput("Z")
+                    .setCheck("Number")
+                    .appendField("Z:");
+                this.setPreviousStatement(true, null);
+                this.setNextStatement(true, null);
+                this.setColour('#00d4aa');
+                this.setTooltip("Set the position of an instance");
+            }
+        };
+
+        Blockly.JavaScript['set_position'] = function(block) {
+            var instance = Blockly.JavaScript.valueToCode(block, 'INSTANCE', Blockly.JavaScript.ORDER_ATOMIC) || 'null';
+            var x = Blockly.JavaScript.valueToCode(block, 'X', Blockly.JavaScript.ORDER_ATOMIC) || '0';
+            var y = Blockly.JavaScript.valueToCode(block, 'Y', Blockly.JavaScript.ORDER_ATOMIC) || '0';
+            var z = Blockly.JavaScript.valueToCode(block, 'Z', Blockly.JavaScript.ORDER_ATOMIC) || '0';
+            return 'await RobloxAPI.setPosition(' + instance + ', ' + x + ', ' + y + ', ' + z + ');\n';
+        };
+
+        // Get Health Block
+        Blockly.Blocks['get_health'] = {
+            init: function() {
+                this.appendValueInput("HUMANOID")
+                    .setCheck("Instance")
+                    .appendField("❤️ health of");
+                this.setOutput(true, "Number");
+                this.setColour('#00d4aa');
+                this.setTooltip("Get the health of a humanoid");
+            }
+        };
+
+        Blockly.JavaScript['get_health'] = function(block) {
+            var humanoid = Blockly.JavaScript.valueToCode(block, 'HUMANOID', Blockly.JavaScript.ORDER_ATOMIC) || 'null';
+            return ['await RobloxAPI.getHealth(' + humanoid + ')', Blockly.JavaScript.ORDER_FUNCTION_CALL];
+        };
+
+        // Set WalkSpeed Block
+        Blockly.Blocks['set_walkspeed'] = {
+            init: function() {
+                this.appendValueInput("HUMANOID")
+                    .setCheck("Instance")
+                    .appendField("🏃 set walkspeed of");
+                this.appendValueInput("SPEED")
+                    .setCheck("Number")
+                    .appendField("to");
+                this.setPreviousStatement(true, null);
+                this.setNextStatement(true, null);
+                this.setColour('#00d4aa');
+                this.setTooltip("Set the walkspeed of a humanoid");
+            }
+        };
+
+        Blockly.JavaScript['set_walkspeed'] = function(block) {
+            var humanoid = Blockly.JavaScript.valueToCode(block, 'HUMANOID', Blockly.JavaScript.ORDER_ATOMIC) || 'null';
+            var speed = Blockly.JavaScript.valueToCode(block, 'SPEED', Blockly.JavaScript.ORDER_ATOMIC) || '16';
+            return 'await RobloxAPI.setWalkSpeed(' + humanoid + ', ' + speed + ');\n';
+        };
+
+        console.log('✅ All Roblox API blocks have been defined!');
+
+        const workspace = Blockly.inject('blocklyDiv', {
+            toolbox: `
+            <xml xmlns="https://developers.google.com/blockly/xml" id="toolbox" style="display: none">
+                <category name="🚩 Events" colour="#fbbf24">
+                    <block type="when_start_clicked"></block>
+                </category>
+                <category name="🎮 Roblox API" colour="#00d4aa">
+                    <block type="get_service">
+                        <field name="SERVICE">Workspace</field>
+                    </block>
+                    <block type="get_service">
+                        <field name="SERVICE">Players</field>
+                    </block>
+                    <block type="get_local_player"></block>
+                    <block type="get_character">
+                        <value name="PLAYER">
+                            <block type="get_local_player"></block>
+                        </value>
+                    </block>
+                    <block type="find_first_child">
+                        <value name="PARENT">
+                            <block type="get_service">
+                                <field name="SERVICE">Workspace</field>
+                            </block>
+                        </value>
+                        <value name="NAME">
+                            <block type="text">
+                                <field name="TEXT">Baseplate</field>
+                            </block>
+                        </value>
+                    </block>
+                    <block type="find_first_child_of_class">
+                        <value name="PARENT">
+                            <block type="get_service">
+                                <field name="SERVICE">Workspace</field>
+                            </block>
+                        </value>
+                        <value name="CLASS">
+                            <block type="text">
+                                <field name="TEXT">Model</field>
+                            </block>
+                        </value>
+                    </block>
+                    <block type="get_children"></block>
+                    <block type="get_descendants"></block>
+                    <block type="get_instance_name"></block>
+                    <block type="get_instance_class"></block>
+                    <block type="get_position"></block>
+                    <block type="set_position">
+                        <value name="X">
+                            <block type="math_number">
+                                <field name="NUM">0</field>
+                            </block>
+                        </value>
+                        <value name="Y">
+                            <block type="math_number">
+                                <field name="NUM">5</field>
+                            </block>
+                        </value>
+                        <value name="Z">
+                            <block type="math_number">
+                                <field name="NUM">0</field>
+                            </block>
+                        </value>
+                    </block>
+                    <block type="get_health"></block>
+                    <block type="set_walkspeed">
+                        <value name="SPEED">
+                            <block type="math_number">
+                                <field name="NUM">50</field>
+                            </block>
+                        </value>
+                    </block>
+                </category>
+                <category name="🔧 Logic" colour="#2f81f7">
+                    <block type="controls_if"></block>
+                    <block type="logic_compare"></block>
+                    <block type="logic_operation"></block>
+                    <block type="logic_negate"></block>
+                    <block type="logic_boolean"></block>
+                </category>
+                <category name="🔁 Loops" colour="#2ea043">
+                    <block type="controls_repeat_ext"></block>
+                    <block type="controls_whileUntil"></block>
+                    <block type="controls_for"></block>
+                    <block type="controls_forEach"></block>
+                    <block type="wait_seconds">
+                        <value name="SECONDS">
+                            <block type="math_number">
+                                <field name="NUM">1</field>
+                            </block>
+                        </value>
+                    </block>
+                </category>
+                <category name="🔢 Math" colour="#8b5cf6">
+                    <block type="math_number"></block>
+                    <block type="math_arithmetic"></block>
+                    <block type="math_single"></block>
+                    <block type="math_round"></block>
+                    <block type="math_random_int"></block>
+                </category>
+                <category name="📝 Text" colour="#fb923c">
+                    <block type="text"></block>
+                    <block type="text_join"></block>
+                    <block type="text_append"></block>
+                    <block type="text_length"></block>
+                </category>
+                <category name="📦 Variables" colour="#f472b6" custom="VARIABLE"></category>
+                <category name="⚙️ Functions" colour="#a855f7" custom="PROCEDURE"></category>
+                <category name="💬 Output" colour="#fd79a8">
+                    <block type="print_output"></block>
+                    <block type="warn_output"></block>
+                </category>
+            </xml>
+            `,
+            theme: darkTheme,
+            grid: {
+                spacing: 25,
+                length: 1,
+                colour: 'rgba(255,255,255,0.08)',
+                snap: true
+            },
+            zoom: {
+                controls: true,
+                wheel: true,
+                startScale: 0.9,
+                maxScale: 2.5,
+                minScale: 0.4,
+                scaleSpeed: 1.1
+            },
+            sounds: false
+        });
+
+        // Global variables for script execution
+        let isRunning = false;
+        let shouldStop = false;
+
+        // Define Event Blocks BEFORE workspace creation
+        Blockly.Blocks['when_start_clicked'] = {
+            init: function() {
+                this.appendDummyInput()
+                    .appendField("🚩 when start clicked");
+                this.appendStatementInput("DO")
+                    .setCheck(null);
+                this.setColour('#ffab19');
+                this.setTooltip("Runs when the start button is clicked");
+            }
+        };
+
+        Blockly.JavaScript['when_start_clicked'] = function(block) {
+            var statements = Blockly.JavaScript.statementToCode(block, 'DO');
+            return '// Event: when start clicked\n' + statements;
+        };
+
+        // Override Blockly's loop generators to be async-friendly
+        Blockly.JavaScript['controls_repeat_ext'] = function(block) {
+            var repeats = Blockly.JavaScript.valueToCode(block, 'TIMES', Blockly.JavaScript.ORDER_ASSIGNMENT) || '0';
+            var branch = Blockly.JavaScript.statementToCode(block, 'DO');
+            branch = Blockly.JavaScript.addLoopTrap(branch, block);
+            var code = '';
+            var loopVar = Blockly.JavaScript.variableDB_.getDistinctName('count', Blockly.VARIABLE_CATEGORY_NAME);
+            var endVar = repeats;
+            if (!repeats.match(/^\w+$/) && !Blockly.isNumber(repeats)) {
+                endVar = Blockly.JavaScript.variableDB_.getDistinctName('repeat_end', Blockly.VARIABLE_CATEGORY_NAME);
+                code += 'var ' + endVar + ' = ' + repeats + ';\n';
+            }
+            code += 'for (var ' + loopVar + ' = 0; ' +
+                loopVar + ' < ' + endVar + '; ' +
+                loopVar + '++) {\n' +
+                branch + '}\n';
+            return code;
+        };
+
+        Blockly.JavaScript['controls_whileUntil'] = function(block) {
+            var until = block.getFieldValue('MODE') == 'UNTIL';
+            var argument0 = Blockly.JavaScript.valueToCode(block, 'BOOL',
+                until ? Blockly.JavaScript.ORDER_LOGICAL_NOT :
+                Blockly.JavaScript.ORDER_NONE) || 'false';
+            var branch = Blockly.JavaScript.statementToCode(block, 'DO');
+            branch = Blockly.JavaScript.addLoopTrap(branch, block);
+            if (until) {
+                argument0 = '!' + argument0;
+            }
+            return 'while (' + argument0 + ') {\n' + branch + '}\n';
+        };
+
+        Blockly.JavaScript['controls_for'] = function(block) {
+            var variable0 = Blockly.JavaScript.variableDB_.getName(
+                block.getFieldValue('VAR'), Blockly.VARIABLE_CATEGORY_NAME);
+            var argument0 = Blockly.JavaScript.valueToCode(block, 'FROM',
+                Blockly.JavaScript.ORDER_ASSIGNMENT) || '0';
+            var argument1 = Blockly.JavaScript.valueToCode(block, 'TO',
+                Blockly.JavaScript.ORDER_ASSIGNMENT) || '0';
+            var increment = Blockly.JavaScript.valueToCode(block, 'BY',
+                Blockly.JavaScript.ORDER_ASSIGNMENT) || '1';
+            var branch = Blockly.JavaScript.statementToCode(block, 'DO');
+            branch = Blockly.JavaScript.addLoopTrap(branch, block);
+            var code;
+            if (Blockly.isNumber(argument0) && Blockly.isNumber(argument1) &&
+                Blockly.isNumber(increment)) {
+                var up = parseFloat(argument0) <= parseFloat(argument1);
+                code = 'for (' + variable0 + ' = ' + argument0 + '; ' +
+                    variable0 + (up ? ' <= ' : ' >= ') + argument1 + '; ' +
+                    variable0;
+                var step = Math.abs(parseFloat(increment));
+                if (step == 1) {
+                    code += up ? '++' : '--';
+                } else {
+                    code += (up ? ' += ' : ' -= ') + step;
+                }
+                code += ') {\n' + branch + '}\n';
+            } else {
+                code = '';
+                var incVar = Blockly.JavaScript.variableDB_.getDistinctName(
+                    variable0 + '_inc', Blockly.VARIABLE_CATEGORY_NAME);
+                code += 'var ' + incVar + ' = ' + increment + ';\n';
+                code += 'if (' + incVar + ' > 0) {\n';
+                code += Blockly.JavaScript.INDENT + 'for (' + variable0 + ' = ' + argument0 + '; ' +
+                    variable0 + ' <= ' + argument1 + '; ' + variable0 + ' += ' + incVar + ') {\n';
+                code += branch;
+                code += Blockly.JavaScript.INDENT + '}\n';
+                code += '} else {\n';
+                code += Blockly.JavaScript.INDENT + 'for (' + variable0 + ' = ' + argument0 + '; ' +
+                    variable0 + ' >= ' + argument1 + '; ' + variable0 + ' += ' + incVar + ') {\n';
+                code += branch;
+                code += Blockly.JavaScript.INDENT + '}\n';
+                code += '}\n';
+            }
+            return code;
+        };
+
+        // Output Blocks
+    Blockly.Blocks['print_output'] = {
+            init: function() {
+                this.appendValueInput("TEXT")
+                    .setCheck(null)
+            .appendField("print");
+                this.setPreviousStatement(true, null);
+                this.setNextStatement(true, null);
+                this.setColour('#fd79a8');
+                this.setTooltip("Print text to the console");
+            }
+        };
+
+        Blockly.JavaScript['print_output'] = function(block) {
+            var text = Blockly.JavaScript.valueToCode(block, 'TEXT', Blockly.JavaScript.ORDER_ATOMIC) || '""';
+            return 'hynthera_output(' + text + ');\n';
+        };
+
+    Blockly.Blocks['warn_output'] = {
+            init: function() {
+                this.appendValueInput("TEXT")
+                    .setCheck(null)
+            .appendField("warn");
+                this.setPreviousStatement(true, null);
+                this.setNextStatement(true, null);
+                this.setColour('#fd79a8');
+                this.setTooltip("Print a warning to the console");
+            }
+        };
+
+        Blockly.JavaScript['warn_output'] = function(block) {
+            var text = Blockly.JavaScript.valueToCode(block, 'TEXT', Blockly.JavaScript.ORDER_ATOMIC) || '""';
+            return 'hynthera_output({message: ' + text + ', type: "warn"});\n';
+        };
+
+        // Wait/Delay Block
+        Blockly.Blocks['wait_seconds'] = {
+            init: function() {
+                this.appendValueInput("SECONDS")
+                    .setCheck("Number")
+                    .appendField("⏱️ wait");
+                this.appendDummyInput()
+                    .appendField("seconds");
+                this.setPreviousStatement(true, null);
+                this.setNextStatement(true, null);
+                this.setColour('#40bf4a');
+                this.setTooltip("Wait for a specified number of seconds (max 5 seconds)");
+            }
+        };
+
+        Blockly.JavaScript['wait_seconds'] = function(block) {
+            var seconds = Blockly.JavaScript.valueToCode(block, 'SECONDS', Blockly.JavaScript.ORDER_ATOMIC) || '1';
+            // Limit wait time to max 5 seconds to prevent abuse
+            return 'await new Promise(resolve => setTimeout(resolve, Math.min(' + seconds + ' * 1000, 5000)));\n';
+        };
+
+        // NOTE: Roblox API blocks have been moved above workspace creation
+
+        const RobloxAPI = {
+            game: null,
+            workspace: null,
+            players: null,
+            isConnected: false,
+            // Ensure we never send an empty object ("{}") to the backend.
+            // Accept both instance objects and raw addresses (number) for convenience.
+            sanitizeInstance(obj) {
+                if (!obj) return null;
+                // If already has an address property that's a number, return minimal shape.
+                if (typeof obj === 'object') {
+                    if (typeof obj.address === 'number') {
+                        return { address: obj.address, className: obj.className || obj.class || obj.ClassName || '', name: obj.name || obj.Name || '' };
+                    }
+                    // Some blocks may store address under different casing
+                    for (const key of Object.keys(obj)) {
+                        if (/addr|address/i.test(key) && typeof obj[key] === 'number') {
+                            return { address: obj[key], className: obj.className || '', name: obj.name || '' };
+                        }
+                    }
+                    return null; // Object provided but no usable address
+                }
+                if (typeof obj === 'number') {
+                    return { address: obj, className: '', name: '' };
+                }
+                return null;
+            },
+            
+            async initialize() {
+                try {
+                    if (!window.chrome || !window.chrome.webview) {
+                        throw new Error('WebView2 interface not available');
+                    }
+                    
+                    const result = await this.callBackend('attach', {});
+                    if (result.success) {
+                        this.isConnected = true;
+                        this.game = { address: result.dataModel, name: "Game", className: "DataModel" };
+                        
+                        this.workspace = await this.getService('Workspace');
+                        this.players = await this.getService('Players');
+                        return true;
+                    } else {
+                        throw new Error(result.error || 'Failed to attach to Roblox');
+                    }
+                } catch (error) {
+                    console.error('RobloxAPI initialization failed:', error);
+                    hynthera_output({message:'Failed to connect to Roblox: ' + error.message, type:'error'});
+                    hynthera_output('💡 Make sure Roblox is running and you\'re in a game');
+                    this.isConnected = false;
+                    return false;
+                }
+            },
+
+            async callBackend(functionName, params = {}) {
+                if (!window.chrome || !window.chrome.webview) {
+                    throw new Error('WebView2 interface not available');
+                }
+
+                return new Promise((resolve, reject) => {
+                    const messageId = Math.random().toString(36).substring(7);
+                    const message = JSON.stringify({
+                        id: messageId,
+                        function: functionName,
+                        params: params
+                    });
+
+                    const handleResponse = (event) => {
+                        try {
+                            const response = JSON.parse(event.data);
+                            if (response.id === messageId) {
+                                window.removeEventListener('message', handleResponse);
+                                resolve(response);
+                            }
+                        } catch (e) {
+                        }
+                    };
+
+                    window.addEventListener('message', handleResponse);
+                    window.chrome.webview.postMessage(message);
+
+                    setTimeout(() => {
+                        window.removeEventListener('message', handleResponse);
+                        reject(new Error('Backend call timeout'));
+                    }, 5000);
+                });
+            },
+
+            async getService(serviceName) {
+                if (!this.isConnected) {
+                    hynthera_output({message:'Not connected to Roblox', type:'error'});
+                    return null;
+                }
+                
+                const result = await this.callBackend('getService', { serviceName });
+                if (result.success) return result.instance;
+                hynthera_output(`❌ Failed to get service: ${serviceName}`);
+                return null;
+            },
+
+            async findFirstChild(parent, name) {
+                if (!this.isConnected) {
+                    hynthera_output({message:'Not connected to Roblox', type:'error'});
+                    return null;
+                }
+                if (!parent) {
+                    hynthera_output({message:'FindFirstChild: Invalid parent', type:'error'});
+                    return null;
+                }
+                
+                const result = await this.callBackend('findFirstChild', { parent, name });
+                if (result.success && result.instance) return result.instance;
+                hynthera_output({message:`Child "${name}" not found in ${parent.name || 'object'}`, type:'warn'});
+                return null;
+            },
+
+            async findFirstChildOfClass(parent, className) {
+                if (!this.isConnected) {
+                    hynthera_output({message:'Not connected to Roblox', type:'error'});
+                    return null;
+                }
+                if (!parent) {
+                    hynthera_output({message:'FindFirstChildOfClass: Invalid parent', type:'error'});
+                    return null;
+                }
+                
+                const result = await this.callBackend('findFirstChildOfClass', { parent, className });
+                if (result.success && result.instance) return result.instance;
+                hynthera_output({message:`No child of class "${className}" found in ${parent.name || 'object'}`, type:'warn'});
+                return null;
+            },
+
+            async getChildren(parent) {
+                if (!this.isConnected) {
+                    hynthera_output({message:'Not connected to Roblox', type:'error'});
+                    return [];
+                }
+                parent = this.sanitizeInstance(parent);
+                if (!parent) {
+                    hynthera_output({message:'GetChildren: Invalid parent', type:'error'});
+                    return [];
+                }
+                
+                const result = await this.callBackend('getChildren', { parent });
+                if (result.success) return result.children;
+                return [];
+            },
+
+            async getDescendants(parent) {
+                if (!this.isConnected) {
+                    hynthera_output({message:'Not connected to Roblox', type:'error'});
+                    return [];
+                }
+                parent = this.sanitizeInstance(parent);
+                if (!parent) {
+                    hynthera_output({message:'GetDescendants: Invalid parent', type:'error'});
+                    return [];
+                }
+                
+                const result = await this.callBackend('getDescendants', { parent });
+                if (result.success) return result.descendants;
+                return [];
+            },
+
+            async getName(instance) {
+                if (!this.isConnected) {
+                    hynthera_output({message:'Not connected to Roblox', type:'error'});
+                    return '';
+                }
+                instance = this.sanitizeInstance(instance);
+                if (!instance) {
+                    hynthera_output({message:'GetName: Invalid instance', type:'error'});
+                    return '';
+                }
+                
+                const result = await this.callBackend('getName', { instance });
+                return result.success ? result.name : '';
+            },
+
+            async getClass(instance) {
+                if (!this.isConnected) {
+                    hynthera_output({message:'Not connected to Roblox', type:'error'});
+                    return '';
+                }
+                instance = this.sanitizeInstance(instance);
+                if (!instance) {
+                    hynthera_output({message:'GetClass: Invalid instance', type:'error'});
+                    return '';
+                }
+                
+                const result = await this.callBackend('getClass', { instance });
+                return result.success ? result.className : '';
+            },
+
+            async getLocalPlayer() {
+                if (!this.isConnected) {
+                    hynthera_output({message:'Not connected to Roblox', type:'error'});
+                    return null;
+                }
+                
+                const result = await this.callBackend('getLocalPlayer');
+                if (result.success) return result.player;
+                hynthera_output({message:'Failed to get local player: ' + (result.error || 'Unknown error'), type:'error'});
+                return null;
+            },
+
+            async getCharacter(player) {
+                if (!this.isConnected) {
+                    hynthera_output({message:'Not connected to Roblox', type:'error'});
+                    return null;
+                }
+                if (!player) {
+                    hynthera_output({message:'GetCharacter: Invalid player', type:'error'});
+                    return null;
+                }
+                
+                const result = await this.callBackend('getCharacter', { player });
+                if (result.success) return result.character;
+                return null;
+            },
+
+            async getPosition(instance) {
+                if (!this.isConnected) {
+                    hynthera_output({message:'Not connected to Roblox', type:'error'});
+                    return { x: 0, y: 0, z: 0 };
+                }
+                if (!instance) {
+                    hynthera_output({message:'GetPosition: Invalid instance', type:'error'});
+                    return { x: 0, y: 0, z: 0 };
+                }
+                
+                const result = await this.callBackend('getPosition', { instance });
+                if (result.success) return result.position;
+                return { x: 0, y: 0, z: 0 };
+            },
+
+            async setPosition(instance, x, y, z) {
+                if (!this.isConnected) {
+                    hynthera_output({message:'Not connected to Roblox', type:'error'});
+                    return;
+                }
+                if (!instance) {
+                    hynthera_output('❌ SetPosition: Invalid instance');
+                    return;
+                }
+                
+                await this.callBackend('setPosition', { instance, x, y, z });
+            },
+
+            async getHealth(humanoid) {
+                if (!this.isConnected) {
+                    hynthera_output('❌ Not connected to Roblox');
+                    return 0;
+                }
+                if (!humanoid) {
+                    hynthera_output('❌ GetHealth: Invalid humanoid');
+                    return 0;
+                }
+                
+                const result = await this.callBackend('getHealth', { humanoid });
+                if (result.success) return result.health;
+                return 0;
+            },
+
+            async setWalkSpeed(humanoid, speed) {
+                if (!this.isConnected) {
+                    hynthera_output('❌ Not connected to Roblox');
+                    return;
+                }
+                if (!humanoid) {
+                    hynthera_output('❌ SetWalkSpeed: Invalid humanoid');
+                    return;
+                }
+                
+                await this.callBackend('setWalkSpeed', { humanoid, speed });
+            }
+        };
+
+        document.addEventListener('DOMContentLoaded', async function() {
+            setTimeout(async () => {
+                await RobloxAPI.initialize();
+            }, 1000);
+        });
+
+        // Output functions (colored, structured, no emojis)
+    function print(entry) { return hynthera_output(entry); }
+    function warn(entry) { return hynthera_output({message: entry, type:'warn'}); }
+    function hynthera_output(entry) {
+            const output = document.getElementById('output');
+            if (!output) return;
+
+            // Normalize entry into object {message, type}
+            let obj;
+            // If a Promise is passed directly, resolve it asynchronously and print the result
+            if (entry && typeof entry.then === 'function') {
+                (async () => {
+                    try {
+                        const v = await entry;
+                        hynthera_output(v);
+                    } catch (e) {
+                        hynthera_output({message: String(e && e.message ? e.message : e), type:'error'});
+                    }
+                })();
+                return;
+            }
+            if (typeof entry === 'string') {
+                obj = { message: entry, type: 'info' };
+            } else if (entry && typeof entry === 'object') {
+                obj = { message: entry.message || JSON.stringify(entry), type: entry.type || entry.__type || 'info' };
+            } else {
+                obj = { message: String(entry), type: 'info' };
+            }
+
+            // Infer type from prefixes if present
+            if (/^warn[:\]]/i.test(obj.message) || obj.message.startsWith('WARN ')) obj.type = 'warn';
+            if (/^error[:\]]/i.test(obj.message) || obj.message.startsWith('ERROR ')) obj.type = 'error';
+
+            const timestamp = new Date().toLocaleTimeString();
+            const line = document.createElement('div');
+            line.style.padding = '0';
+            line.style.margin = '0';
+            line.style.fontFamily = 'Consolas,monospace';
+            line.style.fontSize = '11px';
+
+            // Color mapping
+            let color = '#7ee787'; // info (muted green)
+            if (obj.type === 'warn') color = '#e3b341'; // dim yellow
+            else if (obj.type === 'error') color = '#f85149'; // red
+            line.style.color = color;
+
+            // Strip only leading/trailing emoji-like symbols rather than nuking all content
+            obj.message = obj.message.replace(/^[\p{Extended_Pictographic}\p{So}]+/gu, '').replace(/[\p{Extended_Pictographic}\p{So}]+$/gu, '').trim();
+            if (/await is only valid in async functions/i.test(obj.message)) {
+                obj.type = 'error';
+                obj.message += ' — wrapped code with async automatically. If you pasted raw JS, keep it as-is.';
+            }
+            if (!obj.message) obj.message = '.'; // ensure something visible
+
+            line.textContent = `[${timestamp}] ${obj.type.toUpperCase()}: ${obj.message}`;
+            output.appendChild(line);
+            output.scrollTop = output.scrollHeight;
+        }
+
+        function clearOutput() {
+            const output = document.getElementById('output');
+            const codeInput = document.getElementById('codeInput');
+            if (output) {
+                output.innerHTML = '';
+                const init = document.createElement('div');
+                init.style.color = '#7ee787';
+                init.textContent = '// Output will appear here';
+                output.appendChild(init);
+            }
+            // Don't nuke user code; only reset if we know it was our generated snapshot
+            if (codeInput && codeInput.value === __lastGeneratedCode) {
+                codeInput.value = '// Generated code will appear here';
+                __userEditedSinceSync = false;
+            }
+        }
+
+    // Two-way sync support (lightweight)
+        // We only annotate each top-level stack with a position comment preceding its generated code:
+        // // BLOCK_POS:x,y
+        // <generated js...>
+        // When user edits/pastes code, we reconstruct simple print / warn stacks and place them.
+    let __isUpdatingCode = false;
+    let __codeLoadDebounce = null;
+    let __userEditedSinceSync = false; // true when textarea changed but we didn't fully rebuild blocks
+    let __lastGeneratedCode = '';      // snapshot of the last code produced from blocks
+
+        function generateCodeWithPositions() {
+            const topBlocks = workspace.getTopBlocks(true);
+            let pieces = [];
+            // Initialize generator to ensure nameDB and variables are prepared
+            Blockly.JavaScript.init(workspace);
+            topBlocks.forEach(tb => {
+                if (!tb) return;
+                const xy = tb.getRelativeToSurfaceXY();
+                let code = Blockly.JavaScript.blockToCode(tb) || '';
+                if (Array.isArray(code)) code = code[0];
+                pieces.push(`// BLOCK_POS:${xy.x},${xy.y}`); // simple position marker
+                pieces.push(code.trimEnd());
+            });
+            const full = pieces.join('\n');
+            // Finish to allow Blockly to reset internal state
+            const tail = Blockly.JavaScript.finish(full);
+            return tail;
+        }
+
+        function showCode() {
+            try {
+                const el = document.getElementById('codeInput');
+                const high = document.getElementById('codeHighlight');
+                if (!el) return;
+                // Don't overwrite while the user has edited code that hasn't been synced to blocks
+                if (document.activeElement === el || __userEditedSinceSync) return;
+                __isUpdatingCode = true;
+                const newCode = generateCodeWithPositions();
+                __lastGeneratedCode = newCode;
+                el.value = newCode;
+                if (high) { try { high.textContent = newCode; if (window.hljs) hljs.highlightElement(high); } catch(_){} }
+            } catch (error) {
+                console.error('Error generating code:', error);
+                const el = document.getElementById('codeInput');
+                const high = document.getElementById('codeHighlight');
+                if (el && document.activeElement !== el) {
+                    el.value = '// Error generating code: ' + error.message;
+                    if (high) { try { high.textContent = el.value; if (window.hljs) hljs.highlightElement(high); } catch(_){} }
+                }
+            } finally {
+                __isUpdatingCode = false;
+            }
+        }
+
+        function loadWorkspaceFromCode(codeText) {
+            if (!codeText) return false;
+            const lines = codeText.split(/\r?\n/);
+            // We'll clear and rebuild only if we detect at least one BLOCK_POS
+            const hasMarkers = lines.some(l=> l.startsWith('// BLOCK_POS:'));
+            let rebuilt = false;
+            // Helpers to build basic literal/variable blocks
+            function makeTextBlock(text){ const b=workspace.newBlock('text'); b.initSvg(); b.setFieldValue(text,'TEXT'); b.render(); return b; }
+            function makeNumberBlock(num){ const b=workspace.newBlock('math_number'); b.initSvg(); b.setFieldValue(String(num),'NUM'); b.render(); return b; }
+            function makeVarGet(name){ if(!workspace.getVariable(name)) workspace.createVariable(name); const b=workspace.newBlock('variables_get'); b.initSvg(); b.setFieldValue(name,'VAR'); b.render(); return b; }
+            function ensureVar(name){ if(!workspace.getVariable(name)) workspace.createVariable(name); }
+            function parseQuoted(str){ const m=str.trim().match(/^['"]([\s\S]*?)['"]/); return m?m[1]:null; }
+            function splitArgs(argStr){
+                const args=[]; let cur=''; let depth=0; let inQ=null; for(let i=0;i<argStr.length;i++){ const ch=argStr[i];
+                    if(inQ){ if(ch===inQ && argStr[i-1]!=="\\") inQ=null; cur+=ch; continue; }
+                    if(ch==='"' || ch==="'") { inQ=ch; cur+=ch; continue; }
+                    if(ch==='(') { depth++; cur+=ch; continue; }
+                    if(ch===')') { depth--; cur+=ch; continue; }
+                    if(ch===',' && depth===0){ args.push(cur.trim()); cur=''; continue; }
+                    cur+=ch;
+                } if(cur.trim().length) args.push(cur.trim()); return args;
+            }
+            // Recursively parse RobloxAPI expression chains into value blocks
+            function buildExpr(expr){
+                if(!expr) return null;
+                expr = expr.trim().replace(/^await\s+/,'').replace(/;$/,'');
+                // Variable reference
+                if(/^[A-Za-z_$][\w$]*\??$/.test(expr)) return makeVarGet(expr.replace(/\?$/,''));
+                // Numeric
+                if(/^-?\d+(?:\.\d+)?$/.test(expr)) return makeNumberBlock(Number(expr));
+                // String
+                const q=parseQuoted(expr); if(q!=null && (/^['"]/).test(expr)) return makeTextBlock(q);
+                const m = expr.match(/^RobloxAPI\.(\w+)\s*\((.*)\)$/);
+                if(!m) return null;
+                const fn=m[1]; const inner=m[2]||''; const argv=splitArgs(inner);
+                const newBlockByType = (type)=>{ const b=workspace.newBlock(type); b.initSvg(); return b; };
+                switch(fn){
+                    case 'getService':{
+                        const svc = parseQuoted(argv[0]||'') || 'Workspace';
+                        const b=newBlockByType('get_service'); b.setFieldValue(svc,'SERVICE'); b.render(); return b; }
+                    case 'getLocalPlayer':{ const b=newBlockByType('get_local_player'); b.render(); return b; }
+                    case 'getCharacter':{
+                        const b=newBlockByType('get_character'); const child=buildExpr(argv[0]||''); const inp=b.getInput('PLAYER'); if(child&&inp) inp.connection.connect(child.outputConnection); b.render(); return b; }
+                    case 'findFirstChild':{
+                        const b=newBlockByType('find_first_child'); const p=buildExpr(argv[0]||''); const nm=parseQuoted(argv[1]||'')||''; const inp=b.getInput('PARENT'); if(p&&inp) inp.connection.connect(p.outputConnection); const txt=makeTextBlock(nm); const in2=b.getInput('NAME'); if(in2) in2.connection.connect(txt.outputConnection); b.render(); return b; }
+                    case 'findFirstChildOfClass':{
+                        const b=newBlockByType('find_first_child_of_class'); const p=buildExpr(argv[0]||''); const cl=parseQuoted(argv[1]||'')||''; const inp=b.getInput('PARENT'); if(p&&inp) inp.connection.connect(p.outputConnection); const txt=makeTextBlock(cl); const in2=b.getInput('CLASS'); if(in2) in2.connection.connect(txt.outputConnection); b.render(); return b; }
+                    case 'getChildren':{
+                        const b=newBlockByType('get_children'); const p=buildExpr(argv[0]||''); const inp=b.getInput('PARENT'); if(p&&inp) inp.connection.connect(p.outputConnection); b.render(); return b; }
+                    case 'getDescendants':{
+                        const b=newBlockByType('get_descendants'); const p=buildExpr(argv[0]||''); const inp=b.getInput('PARENT'); if(p&&inp) inp.connection.connect(p.outputConnection); b.render(); return b; }
+                    case 'getName':{
+                        const b=newBlockByType('get_instance_name'); const p=buildExpr(argv[0]||''); const inp=b.getInput('INSTANCE'); if(p&&inp) inp.connection.connect(p.outputConnection); b.render(); return b; }
+                    case 'getClass':{
+                        const b=newBlockByType('get_instance_class'); const p=buildExpr(argv[0]||''); const inp=b.getInput('INSTANCE'); if(p&&inp) inp.connection.connect(p.outputConnection); b.render(); return b; }
+                    case 'getPosition':{
+                        const b=newBlockByType('get_position'); const p=buildExpr(argv[0]||''); const inp=b.getInput('INSTANCE'); if(p&&inp) inp.connection.connect(p.outputConnection); b.render(); return b; }
+                    case 'getHealth':{
+                        const b=newBlockByType('get_health'); const p=buildExpr(argv[0]||''); const inp=b.getInput('HUMANOID'); if(p&&inp) inp.connection.connect(p.outputConnection); b.render(); return b; }
+                }
+                return null;
+            }
+            // Build statement from a function call like setPosition/setWalkSpeed
+            function tryBuildStatement(line, pos){
+                const call = line.trim().replace(/^await\s+/,'');
+                let m = call.match(/^RobloxAPI\.setPosition\s*\((.*)\)\s*;?$/);
+                if(m){ const args=splitArgs(m[1]); const inst=buildExpr(args[0]||''); const x=args[1]||'0', y=args[2]||'0', z=args[3]||'0'; const b=workspace.newBlock('set_position'); b.initSvg(); if(inst){ const inp=b.getInput('INSTANCE'); if(inp) inp.connection.connect(inst.outputConnection);} const nx=workspace.newBlock('math_number'); nx.initSvg(); nx.setFieldValue(String(x).replace(/;$/,''),'NUM'); nx.render(); const ny=workspace.newBlock('math_number'); ny.initSvg(); ny.setFieldValue(String(y),'NUM'); ny.render(); const nz=workspace.newBlock('math_number'); nz.initSvg(); nz.setFieldValue(String(z),'NUM'); nz.render(); b.getInput('X').connection.connect(nx.outputConnection); b.getInput('Y').connection.connect(ny.outputConnection); b.getInput('Z').connection.connect(nz.outputConnection); b.moveBy(pos.x,pos.y); b.render(); return true; }
+                m = call.match(/^RobloxAPI\.setWalkSpeed\s*\((.*)\)\s*;?$/);
+                if(m){ const args=splitArgs(m[1]); const hum=buildExpr(args[0]||''); const sp=args[1]||'16'; const b=workspace.newBlock('set_walkspeed'); b.initSvg(); if(hum){ const inp=b.getInput('HUMANOID'); if(inp) inp.connection.connect(hum.outputConnection);} const ns=workspace.newBlock('math_number'); ns.initSvg(); ns.setFieldValue(String(sp),'NUM'); ns.render(); b.getInput('SPEED').connection.connect(ns.outputConnection); b.moveBy(pos.x,pos.y); b.render(); return true; }
+                return false;
+            }
+            if (!hasMarkers) {
+                // Try a best-effort parse for simple output calls even without markers.
+                // We'll place them in a vertical stack starting at (20,20).
+                const simpleLines = lines.filter(l => /\bprint\(|\bwarn\(|RobloxAPI\./.test(l));
+                if (simpleLines.length === 0) return false; // nothing recognizable; keep user's code only
+                workspace.clear();
+                let pos = { x: 20, y: 20 };
+                const makePrint = (text, isWarn) => {
+                    const blockType = isWarn ? 'warn_output' : 'print_output';
+                    const newBlock = workspace.newBlock(blockType);
+                    newBlock.initSvg();
+                    const textBlock = workspace.newBlock('text');
+                    textBlock.initSvg();
+                    textBlock.setFieldValue(text, 'TEXT');
+                    const input = newBlock.getInput('TEXT');
+                    if (input) input.connection.connect(textBlock.outputConnection);
+                    newBlock.moveBy(pos.x, pos.y);
+                    newBlock.render();
+                    textBlock.render();
+                    pos.y += 60;
+                    rebuilt = true;
+                };
+                for (const l of simpleLines) {
+                    const warnObjMatch = l.match(/\bwarn\(\s*['"]([^'\"]*)['"]\s*\)/);
+                    const genericObjMatch = l.match(/\bprint\(\s*['"]([^'\"]*)['"]\s*\)/);
+                    const simpleMatch = null;
+                    if (warnObjMatch) makePrint(warnObjMatch[1], true);
+                    else if (genericObjMatch) makePrint(genericObjMatch[1], false);
+                    else if (simpleMatch) makePrint(simpleMatch[1], false);
+                    else if (/RobloxAPI\./.test(l)) {
+                        // Try variable assignment first
+                        const asg = l.match(/^(?:const|let|var)?\s*([A-Za-z_$][\w$]*)\s*=\s*(.*?);?$/);
+                        if (asg) {
+                            const varName = asg[1]; const rhs = asg[2]; const exprBlock = buildExpr(rhs);
+                            if (exprBlock) {
+                                ensureVar(varName);
+                                const setb = workspace.newBlock('variables_set'); setb.initSvg(); setb.setFieldValue(varName,'VAR'); const inp=setb.getInput('VALUE'); if (inp) inp.connection.connect(exprBlock.outputConnection); setb.moveBy(pos.x,pos.y); setb.render(); pos.y += 70; rebuilt = true; continue;
+                            }
+                        }
+                        // Statement call
+                        if (tryBuildStatement(l, pos)) { pos.y += 70; rebuilt = true; continue; }
+                        // Fallback: if expression returns value, wrap in print
+                        const expr = buildExpr(l.replace(/;$/, ''));
+                        if (expr) {
+                            const printb = workspace.newBlock('print_output'); printb.initSvg(); const inp=printb.getInput('TEXT'); if (inp) inp.connection.connect(expr.outputConnection); printb.moveBy(pos.x,pos.y); printb.render(); pos.y += 60; rebuilt = true; continue;
+                        }
+                    }
+                }
+                if (rebuilt) {
+                    // Sync textarea to generated code to include markers for future edits
+                    __userEditedSinceSync = false;
+                    showCode();
+                }
+                return rebuilt;
+            }
+            // Markers present: clear and rebuild honoring positions
+            workspace.clear();
+            let currentPos = {x:20,y:20};
+            // Very small parser: we look for patterns of hynthera_output(...) to create print or warn blocks.
+            function makePrintBlock(text, isWarn, pos){
+                const blockType = isWarn ? 'warn_output' : 'print_output';
+                const newBlock = workspace.newBlock(blockType);
+                newBlock.initSvg();
+                // Create a text block child
+                const textBlock = workspace.newBlock('text');
+                textBlock.initSvg();
+                textBlock.setFieldValue(text, 'TEXT');
+                const input = newBlock.getInput('TEXT');
+                if (input) input.connection.connect(textBlock.outputConnection);
+                newBlock.moveBy(pos.x, pos.y);
+                newBlock.render();
+                textBlock.render();
+            }
+            for (let i=0;i<lines.length;i++) {
+                const line = lines[i];
+                const posMatch = line.match(/^\/\/ BLOCK_POS:(-?\d+),(-?\d+)/);
+                if (posMatch) {
+                    currentPos = {x: parseInt(posMatch[1],10), y: parseInt(posMatch[2],10)};
+                    continue;
+                }
+                // Extract simple output calls
+                // hynthera_output({message:'text', type:'warn'}) or hynthera_output("text");
+                const warnObjMatch = line.match(/\bwarn\(\s*['"]([^'"]*)['"]\s*\)/);
+                if (warnObjMatch) {
+                    makePrintBlock(warnObjMatch[1], true, currentPos);
+                    currentPos.y += 60;
+                    rebuilt = true;
+                    continue;
+                }
+                const errObjMatch = line.match(/hynthera_output\(\{[^}]*message:\s*['"]([^'"]*)['"][^}]*type:\s*['"]error['"][^}]*\}\)/);
+                if (errObjMatch) {
+                    // Map errors to warn_output? We'll just use print_output (info) to avoid red block confusion.
+                    makePrintBlock(errObjMatch[1], false, currentPos);
+                    currentPos.y += 60;
+                    rebuilt = true;
+                    continue;
+                }
+                const genericObjMatch = line.match(/\bprint\(\s*['"]([^'"]*)['"]\s*\)/);
+                if (genericObjMatch) {
+                    makePrintBlock(genericObjMatch[1], false, currentPos);
+                    currentPos.y += 60;
+                    rebuilt = true;
+                    continue;
+                }
+                if (false) {
+                    currentPos.y += 60;
+                    rebuilt = true;
+                    continue;
+                }
+                // Variable assignment from RobloxAPI expression
+                const asg = line.match(/^(?:const|let|var)?\s*([A-Za-z_$][\w$]*)\s*=\s*(.*?);?\s*$/);
+                if (asg && /RobloxAPI\./.test(line)) {
+                    const varName = asg[1]; const rhs = asg[2]; const exprBlock = buildExpr(rhs);
+                    if (exprBlock) {
+                        ensureVar(varName);
+                        const setb = workspace.newBlock('variables_set'); setb.initSvg(); setb.setFieldValue(varName,'VAR'); const inp=setb.getInput('VALUE'); if (inp) inp.connection.connect(exprBlock.outputConnection); setb.moveBy(currentPos.x,currentPos.y); setb.render(); currentPos.y += 70; rebuilt = true; continue;
+                    }
+                }
+                // Direct statements like setPosition/setWalkSpeed
+                if (/RobloxAPI\./.test(line)) {
+                    if (tryBuildStatement(line, currentPos)) { currentPos.y += 70; rebuilt = true; continue; }
+                    // Fallback: wrap value-returning expr in print
+                    const ex = buildExpr(line.replace(/;$/, ''));
+                    if (ex) { const pb=workspace.newBlock('print_output'); pb.initSvg(); const inp=pb.getInput('TEXT'); if (inp) inp.connection.connect(ex.outputConnection); pb.moveBy(currentPos.x,currentPos.y); pb.render(); currentPos.y += 60; rebuilt = true; continue; }
+                }
+            }
+            if (rebuilt) {
+                __userEditedSinceSync = false;
+                showCode(); // regenerate with cleaned ordering
+            }
+            return rebuilt;
+        }
+
+    async function runCode() {
+            if (isRunning) {
+                hynthera_output({message:'Code is already running! Please wait...', type:'warn'});
+                return;
+            }
+
+            isRunning = true;
+            let codeArea = document.getElementById('codeInput');
+            let code = codeArea ? codeArea.value : Blockly.JavaScript.workspaceToCode(workspace);
+            
+            if (!code.trim()) {
+                hynthera_output({message:'No blocks to execute - add some blocks first.', type:'warn'});
+                isRunning = false;
+                return;
+            }
+
+            try {
+                // Safe execution with loop limits and timeout
+                // Ensure code runs within an async context so 'await' is valid
+                const needsIIFE = !/\(async\s*\(.*\)\s*=>|async\s*function/.test(code);
+                const wrapped = needsIIFE ? `(async()=>{\n${code}\n})()` : code;
+                await executeCodeSafely(wrapped);
+                
+            } catch (error) {
+                hynthera_output({message:'Error: ' + error.message, type:'error'});
+                console.error('Blockly execution error:', error);
+            } finally {
+                isRunning = false;
+                // Reset button states
+                const runBtn = document.getElementById('runBtn');
+                const stopBtn = document.getElementById('stopBtn');
+                if (runBtn && stopBtn) {
+                    runBtn.style.display = 'block';
+                    stopBtn.style.display = 'none';
+                }
+            }
+            
+            // If the user pasted/typed raw code that isn't synced to blocks, do NOT overwrite it
+            if (!__userEditedSinceSync) {
+                showCode();
+            }
+        }
+
+        // Transform loops to be async and non-blocking
+        function transformLoopsToAsync(code) {
+            let transformedCode = code;
+            
+            // Transform for loops: for (init; condition; increment) { ... }
+            transformedCode = transformedCode.replace(/for\s*\(\s*([^;]+);\s*([^;]+);\s*([^)]+)\s*\)\s*\{/g, 
+                function(match, init, condition, increment) {
+                    return `
+                    ${init};
+                    while (${condition}) {
+                        await checkContinue();
+                        {// Loop body start`;
+                });
+            
+            // Transform while loops: while (condition) { ... }
+            transformedCode = transformedCode.replace(/while\s*\(\s*([^)]+)\s*\)\s*\{/g, 
+                function(match, condition) {
+                    return `while (${condition}) {
+                        await checkContinue();`;
+                });
+            
+            // Transform repeat loops from Blockly: for (var count = 0; count < N; count++) { ... }
+            transformedCode = transformedCode.replace(/for\s*\(\s*var\s+(\w+)\s*=\s*([^;]+);\s*\1\s*<\s*([^;]+);\s*\1\+\+\s*\)\s*\{/g,
+                function(match, varName, start, end) {
+                    return `for (var ${varName} = ${start}; ${varName} < ${end}; ${varName}++) {
+                        await checkContinue();`;
+                });
+            
+            // Handle closing braces for for loops - add increment for manual while conversion
+            let lines = transformedCode.split('\n');
+            let result = [];
+            let forLoopStack = [];
+            
+            for (let i = 0; i < lines.length; i++) {
+                let line = lines[i];
+                
+                // Check if this was a transformed for loop (now while loop)
+                if (line.includes('while (') && lines[i-1] && lines[i-1].includes('var ')) {
+                    // Extract variable and increment from previous lines
+                    let prevLine = lines[i-1].trim();
+                    let varMatch = prevLine.match(/var\s+(\w+)/);
+                    let incrementMatch = prevLine.match(/(\w+)\+\+/);
+                    
+                    if (varMatch && line.includes('// Loop body start')) {
+                        forLoopStack.push({
+                            variable: varMatch[1],
+                            depth: (line.match(/\{/g) || []).length
+                        });
+                    }
+                }
+                
+                // Check for closing braces
+                if (line.includes('}') && forLoopStack.length > 0) {
+                    let currentDepth = (line.match(/\}/g) || []).length;
+                    let loopInfo = forLoopStack[forLoopStack.length - 1];
+                    
+                    if (currentDepth >= loopInfo.depth) {
+                        // Add increment before closing brace
+                        result.push(line.replace('}', `    ${loopInfo.variable}++;\n  }`));
+                        forLoopStack.pop();
+                    } else {
+                        result.push(line);
+                    }
+                } else {
+                    result.push(line);
+                }
+            }
+            
+            return result.join('\n');
+        }
+
+        async function executeCodeSafely(code) {
+            shouldStop = false; // Reset stop flag
+            
+            // Maximum execution time and frame rate settings
+            const MAX_EXECUTION_TIME = 10000; // 10 seconds max
+            const FRAME_DELAY = Math.floor(1000 / 60); // 60 FPS = ~16.67ms per frame
+            
+            // Transform loops to be async and non-blocking
+            let safeCode = transformLoopsToAsync(code);
+
+            // Preprocess: upgrade functions that use 'await' to async automatically
+            function fixAwaitInFunctions(src) {
+                try {
+                    // function name(...) { ... }
+                    src = src.replace(/function\s+([A-Za-z_$][\w$]*)\s*\(([^)]*)\)\s*\{([\s\S]*?)\}/g, (m, name, args, body) => {
+                        if (/\bawait\b/.test(body) && !/^\s*async\b/.test(m)) {
+                            return `async function ${name}(${args}){${body}}`;
+                        }
+                        return m;
+                    });
+                    // const/let/var fn = function(...) { ... }
+                    src = src.replace(/(const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*function\s*\(([^)]*)\)\s*\{([\s\S]*?)\}/g,
+                        (m, decl, name, args, body) => {
+                            if (/\bawait\b/.test(body) && !/async\s*function/.test(m)) {
+                                return `${decl} ${name} = async function(${args}){${body}}`;
+                            }
+                            return m;
+                        }
+                    );
+                    // const/let/var fn = (...) => { ... }
+                    src = src.replace(/(const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*\(([^)]*)\)\s*=>\s*\{([\s\S]*?)\}/g,
+                        (m, decl, name, args, body) => {
+                            if (/\bawait\b/.test(body) && !/^\s*async\s*\(/.test(m)) {
+                                return `${decl} ${name} = async (${args}) => {${body}}`;
+                            }
+                            return m;
+                        }
+                    );
+                } catch (_) {}
+                return src;
+            }
+            safeCode = fixAwaitInFunctions(safeCode);
+            
+            const executeWithTiming = `
+                (async function() {
+                    let iterationCount = 0;
+                    const maxIterations = 10000; // Prevent infinite loops
+                    
+                    // Helper function to check if we should continue and add frame delay
+                    window.checkContinue = async function() {
+                        iterationCount++;
+                        
+                        // Stop execution if requested
+                        if (shouldStop) {
+                            throw new Error('Execution stopped by user');
+                        }
+                        
+                        // Prevent infinite loops
+                        if (iterationCount > maxIterations) {
+                            throw new Error('Maximum iterations exceeded - possible infinite loop detected');
+                        }
+                        
+                        // Yield control to prevent freezing - 60 FPS timing
+                        await new Promise(resolve => setTimeout(resolve, ${FRAME_DELAY}));
+                        return true;
+                    };
+                    
+                    try {
+                        ${safeCode}
+                        if (!shouldStop) {
+                            // silent success
+                        }
+                    } catch (e) {
+                        hynthera_output({message:'Error: ' + e.message, type:'error'});
+                        throw e;
+                    }
+                })();
+            `;
+            
+            // Create execution timeout
+            const startTime = Date.now();
+            
+            // Set up execution timeout
+            const timeoutId = setTimeout(() => {
+                if (!shouldStop) {
+                    shouldStop = true;
+                    hynthera_output({message:'Execution timeout - code took longer than 10 seconds', type:'error'});
+                }
+            }, MAX_EXECUTION_TIME);
+
+            try {
+                // Execute the transformed code in a controlled environment
+                await eval(executeWithTiming);
+                
+            } catch (error) {
+                if (!shouldStop) {
+                    hynthera_output({message:'Execution error: ' + error.message, type:'error'});
+                }
+                console.error('Code execution error:', error);
+                
+            } finally {
+                // Clean up timeout
+                clearTimeout(timeoutId);
+                
+                // Clean up global helper function
+                if (window.checkContinue) {
+                    delete window.checkContinue;
+                }
+                
+                // silent success end
+            }
+        }
+
+        // Auto-update code preview (display only, don't execute)
+        workspace.addChangeListener(function(event) {
+            if (!isRunning && (event.type === Blockly.Events.BLOCK_MOVE || 
+                event.type === Blockly.Events.BLOCK_CREATE || 
+                event.type === Blockly.Events.BLOCK_DELETE ||
+                event.type === Blockly.Events.BLOCK_CHANGE)) {
+                showCode();
+            }
+        });
+
+    const codeEl = document.getElementById('codeInput');
+        if (codeEl) {
+            const scheduleParse = () => {
+                if (__isUpdatingCode) return;
+                if (__codeLoadDebounce) clearTimeout(__codeLoadDebounce);
+                __codeLoadDebounce = setTimeout(()=> {
+                    const rebuilt = loadWorkspaceFromCode(codeEl.value);
+                    // If we managed to rebuild blocks, mark as synced; else keep userEdited flag
+                    __userEditedSinceSync = !rebuilt;
+                }, 400);
+            };
+            codeEl.addEventListener('input', () => { __userEditedSinceSync = true; scheduleParse(); });
+            codeEl.addEventListener('paste', () => { __userEditedSinceSync = true; setTimeout(scheduleParse, 50); });
+        }
+
+        // Display page load time
+        document.addEventListener('DOMContentLoaded', function() {
+            const updateTimeElement = document.getElementById('updateTime');
+            if (updateTimeElement) {
+                updateTimeElement.textContent = new Date().toLocaleString();
+            }
+        });
+
+        const exampleXml = `
+        <xml xmlns="https://developers.google.com/blockly/xml">
+            <block type="when_start_clicked" x="20" y="20">
+                <next>
+                    <block type="print_output">
+                        <value name="TEXT">
+                            <block type="text">
+                                <field name="TEXT">🎮 Getting Roblox services...</field>
+                            </block>
+                        </value>
+                        <next>
+                            <block type="variables_set">
+                                <field name="VAR">game</field>
+                                <value name="VALUE">
+                                    <block type="get_service">
+                                        <field name="SERVICE">Workspace</field>
+                                    </block>
+                                </value>
+                                <next>
+                                    <block type="variables_set">
+                                        <field name="VAR">players</field>
+                                        <value name="VALUE">
+                                            <block type="get_service">
+                                                <field name="SERVICE">Players</field>
+                                            </block>
+                                        </value>
+                                        <next>
+                                            <block type="variables_set">
+                                                <field name="VAR">localPlayer</field>
+                                                <value name="VALUE">
+                                                    <block type="get_local_player"></block>
+                                                </value>
+                                                <next>
+                                                    <block type="print_output">
+                                                        <value name="TEXT">
+                                                            <block type="text_join">
+                                                                <mutation items="2"></mutation>
+                                                                <value name="ADD0">
+                                                                    <block type="text">
+                                                                        <field name="TEXT">👤 Local player: </field>
+                                                                    </block>
+                                                                </value>
+                                                                <value name="ADD1">
+                                                                    <block type="get_instance_name">
+                                                                        <value name="INSTANCE">
+                                                                            <block type="variables_get">
+                                                                                <field name="VAR">localPlayer</field>
+                                                                            </block>
+                                                                        </value>
+                                                                    </block>
+                                                                </value>
+                                                            </block>
+                                                        </value>
+                                                        <next>
+                                                            <block type="variables_set">
+                                                                <field name="VAR">character</field>
+                                                                <value name="VALUE">
+                                                                    <block type="get_character">
+                                                                        <value name="PLAYER">
+                                                                            <block type="variables_get">
+                                                                                <field name="VAR">localPlayer</field>
+                                                                            </block>
+                                                                        </value>
+                                                                    </block>
+                                                                </value>
+                                                                <next>
+                                                                    <block type="controls_if">
+                                                                        <value name="IF0">
+                                                                            <block type="logic_compare">
+                                                                                <field name="OP">NEQ</field>
+                                                                                <value name="A">
+                                                                                    <block type="variables_get">
+                                                                                        <field name="VAR">character</field>
+                                                                                    </block>
+                                                                                </value>
+                                                                                <value name="B">
+                                                                                    <block type="logic_null"></block>
+                                                                                </value>
+                                                                            </block>
+                                                                        </value>
+                                                                        <statement name="DO0">
+                                                                            <block type="print_output">
+                                                                                <value name="TEXT">
+                                                                                    <block type="text">
+                                                                                        <field name="TEXT">✅ Character found! Ready to use Roblox API.</field>
+                                                                                    </block>
+                                                                                </value>
+                                                                            </block>
+                                                                        </statement>
+                                                                    </block>
+                                                                </next>
+                                                            </block>
+                                                        </next>
+                                                    </block>
+                                                </next>
+                                            </block>
+                                        </next>
+                                    </block>
+                                </next>
+                            </block>
+                        </next>
+                    </block>
+                </next>
+            </block>
+        </xml>`;
+        
+        // Load example XML using compatible API
+        try {
+            const dom = Blockly.Xml.textToDom(exampleXml);
+            Blockly.Xml.domToWorkspace(dom, workspace);
+        } catch (e) {
+            console.log('XML loading failed:', e);
+            // Fallback: just show empty workspace
+        }
+        // Force dark styling in case Blockly injects late styles
+        function applyDarkFixes(){
+            const toRecolor = document.querySelectorAll('.blocklyToolboxDiv, .blocklyFlyoutBackground, .blocklyFlyout');
+            toRecolor.forEach(el=>{ el.style.background = '#161b22'; });
+        }
+        applyDarkFixes();
+        setTimeout(applyDarkFixes, 250);
+        setTimeout(applyDarkFixes, 1000);
+        const obs = new MutationObserver(()=>applyDarkFixes());
+        obs.observe(document.body,{childList:true,subtree:true});
+    showCode();
+    </script>
+</body>
+</html>
