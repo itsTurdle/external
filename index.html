@@ -17,9 +17,10 @@
     
     <script src="https://unpkg.com/blockly@10.4.3/blockly.min.js"></script>
     <script src="https://unpkg.com/blockly@10.4.3/javascript_compressed.js"></script>
+    <script src="blockly_parser.js"></script>
     <script>
         // Unique build tag changes each edit to force WebView2 to see file difference
-        window.__BUILD_TAG = 'build-20250909-' + Math.random().toString(36).slice(2,9);
+        window.__BUILD_TAG = 'build-20250910-' + Math.random().toString(36).slice(2,9);
     </script>
     <script>
         const loadTime = new Date().toISOString();
@@ -59,11 +60,13 @@
             color: #ffffff;
             height: 100vh;
             overflow: hidden;
+            display:flex;
+            flex-direction:column;
         }
-        
         .main-container {
             display: flex;
-            height: 100vh;
+            flex:1 1 auto;
+            min-height:0;
             gap: 4px;
             padding: 4px;
         }
@@ -147,6 +150,9 @@
     </style>
 </head>
 <body>
+    <div id="tabsBar" style="display:flex; gap:4px; overflow-x:hidden; padding:6px 6px 6px 6px; scrollbar-width:thin; background:#0d1117; border-bottom:1px solid #1e242b; position:relative; flex:0 0 auto;">
+        <div id="addTabBtn" style="flex:0 0 auto; cursor:pointer; background:#238636; color:#fff; font-size:14px; padding:4px 12px; border-radius:4px; user-select:none; font-weight:600;">+</div>
+    </div>
     <div class="main-container">
         <div class="editor-section">
             <div id="blocklyDiv" style="height:100%; width:100%;"></div>
@@ -156,7 +162,7 @@
                     🎮 ROBLOX API v1.1.1
                 </div>
             <div class="code-preview" style="flex:1; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:6px; padding:0; overflow:hidden; font-family:Consolas,monospace; font-size:11px; position:relative;">
-                <div class="code-header" style="font-weight:600; margin:6px; margin-bottom:2px; font-size:10px; color:#00d4aa;">Generated / Editable Code</div>
+                <div class="code-header" style="font-weight:600; margin:6px; margin-bottom:2px; font-size:10px; color:#00d4aa;">Program JSON (Columns)</div>
                 <div class="code-editor" style="position:relative; height:calc(100% - 22px);">
                     <textarea id="codeInput" spellcheck="false" style="width:100%; height:100%; margin:0; padding:6px; background:rgba(0,0,0,0.3); color:#f0f6fc; caret-color:#f0f6fc; border:none; outline:none; resize:none; line-height:1.3; font-family:Consolas,monospace; font-size:11px; overflow:auto;">// Generated code will appear here</textarea>
                 </div>
@@ -170,6 +176,8 @@
                 <button id="stopBtn" style="background:#da3633; color:#f0f6fc; border:1px solid #f85149; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:11px; position:relative; z-index:1002; pointer-events:auto; display:none;">Stop</button>
                 <button id="clearBtn" style="background:#656d76; color:#f0f6fc; border:1px solid #8b949e; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:11px; position:relative; z-index:1002; pointer-events:auto;">Clear</button>
                 <button id="refreshBtn" style="background:#656d76; color:#f0f6fc; border:1px solid #8b949e; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:11px; position:relative; z-index:1002; pointer-events:auto;" title="Force refresh page">↻</button>
+                <button id="exportBlocksBtn" style="background:#3b82f6; color:#f0f6fc; border:1px solid #2563eb; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:11px; position:relative; z-index:1002; pointer-events:auto;" title="Export JSON">Export</button>
+                <button id="importBlocksBtn" style="background:#9333ea; color:#f0f6fc; border:1px solid #7e22ce; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:11px; position:relative; z-index:1002; pointer-events:auto;" title="Import JSON">Import</button>
             </div>
         </div>
     </div>
@@ -421,22 +429,21 @@
         return 'warn(' + text + ');\n';
         };
 
-        // Comment Block
+        // Simple comment statement block
         Blockly.Blocks['comment'] = {
             init: function() {
                 this.appendDummyInput()
-                    .appendField("--")
-                    .appendField(new Blockly.FieldTextInput("comment text"), "TEXT");
+                    .appendField('💬')
+                    .appendField(new Blockly.FieldTextInput('comment'), 'TEXT');
                 this.setPreviousStatement(true, null);
                 this.setNextStatement(true, null);
-                this.setColour('#6c757d');
-                this.setTooltip("Add a comment to your code");
+                this.setColour('#656d76');
+                this.setTooltip('Comment (no execution)');
             }
         };
-
         Blockly.JavaScript['comment'] = function(block) {
-            var text = block.getFieldValue('TEXT') || 'comment';
-            return '-- ' + text + '\n';
+            var t = block.getFieldValue('TEXT') || '';
+            return '// ' + t + '\n';
         };
 
         // Roblox API Blocks - MOVED HERE TO BE DEFINED BEFORE WORKSPACE CREATION
@@ -811,9 +818,7 @@
                 <category name="💬 Output" colour="#fd79a8">
                     <block type="print_output"></block>
                     <block type="warn_output"></block>
-                    <block type="comment">
-                        <field name="TEXT">yo wtf twin</field>
-                    </block>
+                    <block type="comment"></block>
                 </category>
             </xml>
             `,
@@ -966,6 +971,25 @@
         Blockly.JavaScript['warn_output'] = function(block) {
             var text = Blockly.JavaScript.valueToCode(block, 'TEXT', Blockly.JavaScript.ORDER_ATOMIC) || '""';
             return 'hynthera_output({message: ' + text + ', type: "warn"});\n';
+        };
+
+        // Generic expression statement wrapper so any value block can be chained
+        Blockly.Blocks['expr_statement'] = {
+            init: function() {
+                this.appendValueInput('EXPR').setCheck(null).appendField('do');
+                this.setPreviousStatement(true, null);
+                this.setNextStatement(true, null);
+                this.setColour('#9ca3af');
+                this.setTooltip('Execute an expression as a statement');
+            }
+        };
+        Blockly.JavaScript['expr_statement'] = function(block) {
+            var code = Blockly.JavaScript.valueToCode(block, 'EXPR', Blockly.JavaScript.ORDER_NONE) || '';
+            if (!code) return ';// empty\n';
+            // Ensure exactly one semicolon and newline at the end
+            code = code.replace(/\s+$/, '');
+            if (!/;\s*$/.test(code)) code += ';';
+            return code + '\n';
         };
 
         // Wait/Delay Block
@@ -1275,6 +1299,22 @@
             }, 1000);
         });
 
+        // Receive logs from native (C++) via WebView2 PostWebMessageAsString
+        if (window.chrome && window.chrome.webview) {
+            try {
+                window.chrome.webview.addEventListener('message', (e) => {
+                    const data = e && e.data ? e.data : '';
+                    // Accept either plain strings or JSON {message,type}
+                    try {
+                        const obj = JSON.parse(data);
+                        hynthera_output(obj);
+                    } catch(_) {
+                        hynthera_output(String(data));
+                    }
+                });
+            } catch(_) {}
+        }
+
         // Output functions (colored, structured, no emojis)
     function print(entry) { return hynthera_output(entry); }
     function warn(entry) { return hynthera_output({message: entry, type:'warn'}); }
@@ -1321,8 +1361,8 @@
             else if (obj.type === 'error') color = '#f85149'; // red
             line.style.color = color;
 
-            // Strip only leading/trailing emoji-like symbols rather than nuking all content
-            obj.message = obj.message.replace(/^[\p{Extended_Pictographic}\p{So}]+/gu, '').replace(/[\p{Extended_Pictographic}\p{So}]+$/gu, '').trim();
+            // Keep emojis (like checkmarks) intact; only trim whitespace
+            obj.message = String(obj.message || '').trim();
             if (/await is only valid in async functions/i.test(obj.message)) {
                 obj.type = 'error';
                 obj.message += ' — wrapped code with async automatically. If you pasted raw JS, keep it as-is.';
@@ -1362,43 +1402,95 @@
     let __lastGeneratedCode = '';      // snapshot of the last code produced from blocks
 
         function generateCodeWithPositions() {
-            const topBlocks = workspace.getTopBlocks(true);
-            let pieces = [];
-            // Initialize generator to ensure nameDB and variables are prepared
-            Blockly.JavaScript.init(workspace);
-            topBlocks.forEach(tb => {
-                if (!tb) return;
-                const xy = tb.getRelativeToSurfaceXY();
-                let code = Blockly.JavaScript.blockToCode(tb) || '';
-                if (Array.isArray(code)) code = code[0];
-                pieces.push(`// BLOCK_POS:${xy.x},${xy.y}`); // simple position marker
-                pieces.push(code.trimEnd());
-            });
-            const full = pieces.join('\n');
-            // Finish to allow Blockly to reset internal state
-            const tail = Blockly.JavaScript.finish(full);
-            return tail;
+            try {
+                const topBlocks = workspace.getTopBlocks(true);
+                if (topBlocks.length === 0) {
+                    return '// No blocks in workspace\n';
+                }
+                
+                let pieces = [];
+                // Initialize generator to ensure nameDB and variables are prepared
+                Blockly.JavaScript.init(workspace);
+                
+                topBlocks.forEach(tb => {
+                    if (!tb) return;
+                    
+                    try {
+                        const xy = tb.getRelativeToSurfaceXY();
+                        let code = Blockly.JavaScript.blockToCode(tb) || '';
+                        
+                        // Handle array return from blockToCode
+                        if (Array.isArray(code)) code = code[0] || '';
+                        
+                        // Clean up the code
+                        code = code.trimEnd();
+                        if (code) {
+                            pieces.push(`// BLOCK_POS:${xy.x},${xy.y}`);
+                            pieces.push(code);
+                        }
+                    } catch (error) {
+                        console.warn('Error generating code for block:', tb.type, error);
+                        pieces.push('// Error generating code for block: ' + tb.type);
+                    }
+                });
+                
+                const full = pieces.join('\n');
+                // Finish to allow Blockly to reset internal state
+                const result = Blockly.JavaScript.finish(full);
+                return result || '// Generated code is empty\n';
+            } catch (error) {
+                console.error('Error in generateCodeWithPositions:', error);
+                return '// Error generating code: ' + error.message + '\n';
+            }
         }
 
-        function showCode() {
+    function showCode() {
             try {
                 const el = document.getElementById('codeInput');
-                const high = document.getElementById('codeHighlight');
-                if (!el) return;
-                // Don't overwrite while the user has edited code that hasn't been synced to blocks
-                if (document.activeElement === el || __userEditedSinceSync) return;
+                if (!el) {
+                    console.warn('Code input element not found');
+                    return;
+                }
+                
+        if (document.activeElement === el || __userEditedSinceSync) {
+                    return;
+                }
+                
                 __isUpdatingCode = true;
-                const newCode = generateCodeWithPositions();
-                __lastGeneratedCode = newCode;
-                el.value = newCode;
-                if (high) { try { high.textContent = newCode; if (window.hljs) hljs.highlightElement(high); } catch(_){} }
+        const newCode = serializeWorkspaceColumns();
+                
+                // Only update if code actually changed to prevent unnecessary updates
+                if (newCode !== __lastGeneratedCode) {
+                    __lastGeneratedCode = newCode;
+                    el.value = newCode;
+                    
+                    // Update syntax highlighting if available
+                    const high = document.getElementById('codeHighlight');
+                    if (high) {
+                        try { 
+                            high.textContent = newCode; 
+                            if (window.hljs && typeof hljs.highlightElement === 'function') {
+                                hljs.highlightElement(high); 
+                            }
+                        } catch(highlightError) {
+                            console.warn('Syntax highlighting error:', highlightError);
+                        }
+                    }
+                }
             } catch (error) {
-                console.error('Error generating code:', error);
+                console.error('Error in showCode:', error);
                 const el = document.getElementById('codeInput');
-                const high = document.getElementById('codeHighlight');
                 if (el && document.activeElement !== el) {
-                    el.value = '// Error generating code: ' + error.message;
-                    if (high) { try { high.textContent = el.value; if (window.hljs) hljs.highlightElement(high); } catch(_){} }
+                    const errorMsg = '// Error generating code: ' + error.message + '\n// Please check the console for details\n';
+                    el.value = errorMsg;
+                    __lastGeneratedCode = errorMsg;
+                    
+                    const high = document.getElementById('codeHighlight');
+                    if (high) { 
+                        try { 
+                            high.textContent = errorMsg; 
+                        } catch(_){} 
+                    }
                 }
             } finally {
                 __isUpdatingCode = false;
@@ -1407,408 +1499,30 @@
 
         function loadWorkspaceFromCode(codeText) {
             if (!codeText) return false;
-            const lines = codeText.split(/\r?\n/);
-            // We'll clear and rebuild only if we detect at least one BLOCK_POS
-            const hasMarkers = lines.some(l=> l.startsWith('// BLOCK_POS:'));
-            let rebuilt = false;
-            // Helpers to build basic literal/variable blocks
-            function makeTextBlock(text){ const b=workspace.newBlock('text'); b.initSvg(); b.setFieldValue(text,'TEXT'); b.render(); return b; }
-            function makeNumberBlock(num){ const b=workspace.newBlock('math_number'); b.initSvg(); b.setFieldValue(String(num),'NUM'); b.render(); return b; }
-            function makeVarGet(name){ if(!workspace.getVariable(name)) workspace.createVariable(name); const b=workspace.newBlock('variables_get'); b.initSvg(); b.setFieldValue(name,'VAR'); b.render(); return b; }
-            function ensureVar(name){ if(!workspace.getVariable(name)) workspace.createVariable(name); }
-            function parseQuoted(str){ const m=str.trim().match(/^['"]([\s\S]*?)['"]/); return m?m[1]:null; }
-            function splitArgs(argStr){
-                const args=[]; let cur=''; let depth=0; let inQ=null; for(let i=0;i<argStr.length;i++){ const ch=argStr[i];
-                    if(inQ){ if(ch===inQ && argStr[i-1]!=="\\") inQ=null; cur+=ch; continue; }
-                    if(ch==='"' || ch==="'") { inQ=ch; cur+=ch; continue; }
-                    if(ch==='(') { depth++; cur+=ch; continue; }
-                    if(ch===')') { depth--; cur+=ch; continue; }
-                    if(ch===',' && depth===0){ args.push(cur.trim()); cur=''; continue; }
-                    cur+=ch;
-                } if(cur.trim().length) args.push(cur.trim()); return args;
-            }
-            // Recursively parse RobloxAPI expression chains into value blocks
-            function buildExpr(expr){
-                if(!expr) return null;
-                expr = expr.trim().replace(/^await\s+/,'').replace(/;$/,'');
-                // Variable reference
-                if(/^[A-Za-z_$][\w$]*\??$/.test(expr)) return makeVarGet(expr.replace(/\?$/,''));
-                // Numeric
-                if(/^-?\d+(?:\.\d+)?$/.test(expr)) return makeNumberBlock(Number(expr));
-                // String
-                const q=parseQuoted(expr); if(q!=null && (/^['"]/).test(expr)) return makeTextBlock(q);
-                const m = expr.match(/^RobloxAPI\.(\w+)\s*\((.*)\)$/);
-                if(!m) return null;
-                const fn=m[1]; const inner=m[2]||''; const argv=splitArgs(inner);
-                const newBlockByType = (type)=>{ const b=workspace.newBlock(type); b.initSvg(); return b; };
-                switch(fn){
-                    case 'getService':{
-                        const svc = parseQuoted(argv[0]||'') || 'Workspace';
-                        const b=newBlockByType('get_service'); b.setFieldValue(svc,'SERVICE'); b.render(); return b; }
-                    case 'getLocalPlayer':{ const b=newBlockByType('get_local_player'); b.render(); return b; }
-                    case 'getCharacter':{
-                        const b=newBlockByType('get_character'); const child=buildExpr(argv[0]||''); const inp=b.getInput('PLAYER'); if(child&&inp) inp.connection.connect(child.outputConnection); b.render(); return b; }
-                    case 'findFirstChild':{
-                        const b=newBlockByType('find_first_child'); const p=buildExpr(argv[0]||''); const nm=parseQuoted(argv[1]||'')||''; const inp=b.getInput('PARENT'); if(p&&inp) inp.connection.connect(p.outputConnection); const txt=makeTextBlock(nm); const in2=b.getInput('NAME'); if(in2) in2.connection.connect(txt.outputConnection); b.render(); return b; }
-                    case 'findFirstChildOfClass':{
-                        const b=newBlockByType('find_first_child_of_class'); const p=buildExpr(argv[0]||''); const cl=parseQuoted(argv[1]||'')||''; const inp=b.getInput('PARENT'); if(p&&inp) inp.connection.connect(p.outputConnection); const txt=makeTextBlock(cl); const in2=b.getInput('CLASS'); if(in2) in2.connection.connect(txt.outputConnection); b.render(); return b; }
-                    case 'getChildren':{
-                        const b=newBlockByType('get_children'); const p=buildExpr(argv[0]||''); const inp=b.getInput('PARENT'); if(p&&inp) inp.connection.connect(p.outputConnection); b.render(); return b; }
-                    case 'getDescendants':{
-                        const b=newBlockByType('get_descendants'); const p=buildExpr(argv[0]||''); const inp=b.getInput('PARENT'); if(p&&inp) inp.connection.connect(p.outputConnection); b.render(); return b; }
-                    case 'getName':{
-                        const b=newBlockByType('get_instance_name'); const p=buildExpr(argv[0]||''); const inp=b.getInput('INSTANCE'); if(p&&inp) inp.connection.connect(p.outputConnection); b.render(); return b; }
-                    case 'getClass':{
-                        const b=newBlockByType('get_instance_class'); const p=buildExpr(argv[0]||''); const inp=b.getInput('INSTANCE'); if(p&&inp) inp.connection.connect(p.outputConnection); b.render(); return b; }
-                    case 'getPosition':{
-                        const b=newBlockByType('get_position'); const p=buildExpr(argv[0]||''); const inp=b.getInput('INSTANCE'); if(p&&inp) inp.connection.connect(p.outputConnection); b.render(); return b; }
-                    case 'getHealth':{
-                        const b=newBlockByType('get_health'); const p=buildExpr(argv[0]||''); const inp=b.getInput('HUMANOID'); if(p&&inp) inp.connection.connect(p.outputConnection); b.render(); return b; }
-                }
-                return null;
-            }
-            // Build statement from a function call like setPosition/setWalkSpeed
-            function tryBuildStatement(line, pos){
-                const call = line.trim().replace(/^await\s+/,'');
-                let m = call.match(/^RobloxAPI\.setPosition\s*\((.*)\)\s*;?$/);
-                if(m){ const args=splitArgs(m[1]); const inst=buildExpr(args[0]||''); const x=args[1]||'0', y=args[2]||'0', z=args[3]||'0'; const b=workspace.newBlock('set_position'); b.initSvg(); if(inst){ const inp=b.getInput('INSTANCE'); if(inp) inp.connection.connect(inst.outputConnection);} const nx=workspace.newBlock('math_number'); nx.initSvg(); nx.setFieldValue(String(x).replace(/;$/,''),'NUM'); nx.render(); const ny=workspace.newBlock('math_number'); ny.initSvg(); ny.setFieldValue(String(y),'NUM'); ny.render(); const nz=workspace.newBlock('math_number'); nz.initSvg(); nz.setFieldValue(String(z),'NUM'); nz.render(); b.getInput('X').connection.connect(nx.outputConnection); b.getInput('Y').connection.connect(ny.outputConnection); b.getInput('Z').connection.connect(nz.outputConnection); b.moveBy(pos.x,pos.y); b.render(); return true; }
-                m = call.match(/^RobloxAPI\.setWalkSpeed\s*\((.*)\)\s*;?$/);
-                if(m){ const args=splitArgs(m[1]); const hum=buildExpr(args[0]||''); const sp=args[1]||'16'; const b=workspace.newBlock('set_walkspeed'); b.initSvg(); if(hum){ const inp=b.getInput('HUMANOID'); if(inp) inp.connection.connect(hum.outputConnection);} const ns=workspace.newBlock('math_number'); ns.initSvg(); ns.setFieldValue(String(sp),'NUM'); ns.render(); b.getInput('SPEED').connection.connect(ns.outputConnection); b.moveBy(pos.x,pos.y); b.render(); return true; }
-                return false;
-            }
-            if (!hasMarkers) {
-                // Try a best-effort parse for various block types even without markers.
-                // We'll place them in a vertical stack starting at (20,20).
-                const relevantLines = lines.filter(l => 
-                    /\bprint\(|\bwarn\(|RobloxAPI\.|for\s*\(|while\s*\(|if\s*\(|\/\/\s*Event:|hynthera_output|^--\s/.test(l) && 
-                    l.trim() !== ''
-                );
-                if (relevantLines.length === 0) return false; // nothing recognizable; keep user's code only
-                workspace.clear();
-                let pos = { x: 20, y: 20 };
+            
+            try {
+                // Use the new robust parser
+                const parser = new BlocklyCodeParser(workspace);
+                const success = parser.parseAndLoad(codeText);
                 
-                const makePrint = (text, isWarn) => {
-                    const blockType = isWarn ? 'warn_output' : 'print_output';
-                    const newBlock = workspace.newBlock(blockType);
-                    newBlock.initSvg();
-                    const textBlock = workspace.newBlock('text');
-                    textBlock.initSvg();
-                    textBlock.setFieldValue(text, 'TEXT');
-                    const input = newBlock.getInput('TEXT');
-                    if (input) input.connection.connect(textBlock.outputConnection);
-                    newBlock.moveBy(pos.x, pos.y);
-                    newBlock.render();
-                    textBlock.render();
-                    pos.y += 60;
-                    rebuilt = true;
-                };
-
-                const makeLoop = (type, condition, body) => {
-                    let blockType = 'controls_whileUntil';
-                    if (type === 'for') blockType = 'controls_repeat_ext';
-                    
-                    const newBlock = workspace.newBlock(blockType);
-                    newBlock.initSvg();
-                    
-                    if (type === 'for') {
-                        // Try to extract repeat count from for loop
-                        const countMatch = condition.match(/count\s*<\s*(\d+)/);
-                        if (countMatch) {
-                            const numBlock = workspace.newBlock('math_number');
-                            numBlock.initSvg();
-                            numBlock.setFieldValue(countMatch[1], 'NUM');
-                            const input = newBlock.getInput('TIMES');
-                            if (input) input.connection.connect(numBlock.outputConnection);
-                            numBlock.render();
-                        }
-                    } else if (type === 'while') {
-                        // For while loops, we'd need to parse the condition properly
-                        // For now, just create a simple true condition
-                        const boolBlock = workspace.newBlock('logic_boolean');
-                        boolBlock.initSvg();
-                        boolBlock.setFieldValue('TRUE', 'BOOL');
-                        const input = newBlock.getInput('BOOL');
-                        if (input) input.connection.connect(boolBlock.outputConnection);
-                        boolBlock.render();
-                    }
-                    
-                    newBlock.moveBy(pos.x, pos.y);
-                    newBlock.render();
-                    pos.y += 80;
-                    rebuilt = true;
-                };
-
-                const makeIf = (condition) => {
-                    const newBlock = workspace.newBlock('controls_if');
-                    newBlock.initSvg();
-                    
-                    // Create a simple true condition for now
-                    const boolBlock = workspace.newBlock('logic_boolean');
-                    boolBlock.initSvg();
-                    boolBlock.setFieldValue('TRUE', 'BOOL');
-                    const input = newBlock.getInput('IF0');
-                    if (input) input.connection.connect(boolBlock.outputConnection);
-                    boolBlock.render();
-                    
-                    newBlock.moveBy(pos.x, pos.y);
-                    newBlock.render();
-                    pos.y += 80;
-                    rebuilt = true;
-                };
-
-                const makeComment = (text) => {
-                    const newBlock = workspace.newBlock('comment');
-                    newBlock.initSvg();
-                    newBlock.setFieldValue(text, 'TEXT');
-                    newBlock.moveBy(pos.x, pos.y);
-                    newBlock.render();
-                    pos.y += 40;
-                    rebuilt = true;
-                };
-
-                for (const l of relevantLines) {
-                    // Handle comments
-                    const commentMatch = l.match(/^--\s*(.*)/);
-                    if (commentMatch) {
-                        makeComment(commentMatch[1] || 'comment');
-                        continue;
-                    }
-                    
-                    // Handle print/warn statements
-                    const warnMatch = l.match(/\bwarn\(\s*['"]([^'\"]*)['"]\s*\)/);
-                    const printMatch = l.match(/\bprint\(\s*['"]([^'\"]*)['"]\s*\)/);
-                    const hyntheraMatch = l.match(/hynthera_output\(\s*['"]([^'\"]*)['"]\s*\)/);
-                    
-                    if (warnMatch) {
-                        makePrint(warnMatch[1], true);
-                        continue;
-                    }
-                    if (printMatch) {
-                        makePrint(printMatch[1], false);
-                        continue;
-                    }
-                    if (hyntheraMatch) {
-                        makePrint(hyntheraMatch[1], false);
-                        continue;
-                    }
-                    
-                    // Handle loops
-                    const forMatch = l.match(/for\s*\(\s*[^;]*;\s*([^;]*);[^)]*\)\s*\{/);
-                    if (forMatch) {
-                        makeLoop('for', forMatch[1], '');
-                        continue;
-                    }
-                    
-                    const whileMatch = l.match(/while\s*\(\s*([^)]*)\s*\)\s*\{/);
-                    if (whileMatch) {
-                        makeLoop('while', whileMatch[1], '');
-                        continue;
-                    }
-                    
-                    // Handle if statements
-                    const ifMatch = l.match(/if\s*\(\s*([^)]*)\s*\)\s*\{/);
-                    if (ifMatch) {
-                        makeIf(ifMatch[1]);
-                        continue;
-                    }
-                    
-                    // Handle RobloxAPI calls
-                    if (/RobloxAPI\./.test(l)) {
-                        // Try variable assignment first
-                        const asg = l.match(/^(?:const|let|var)?\s*([A-Za-z_$][\w$]*)\s*=\s*(.*?);?$/);
-                        if (asg) {
-                            const varName = asg[1]; const rhs = asg[2]; const exprBlock = buildExpr(rhs);
-                            if (exprBlock) {
-                                ensureVar(varName);
-                                const setb = workspace.newBlock('variables_set'); setb.initSvg(); setb.setFieldValue(varName,'VAR'); const inp=setb.getInput('VALUE'); if (inp) inp.connection.connect(exprBlock.outputConnection); setb.moveBy(pos.x,pos.y); setb.render(); pos.y += 70; rebuilt = true; continue;
-                            }
-                        }
-                        // Statement call
-                        if (tryBuildStatement(l, pos)) { pos.y += 70; rebuilt = true; continue; }
-                        // Fallback: if expression returns value, wrap in print
-                        const expr = buildExpr(l.replace(/;$/, ''));
-                        if (expr) {
-                            const printb = workspace.newBlock('print_output'); printb.initSvg(); const inp=printb.getInput('TEXT'); if (inp) inp.connection.connect(expr.outputConnection); printb.moveBy(pos.x,pos.y); printb.render(); pos.y += 60; rebuilt = true; continue;
-                        }
-                    }
-                }
-                if (rebuilt) {
-                    // Sync textarea to generated code to include markers for future edits
+                if (success) {
+                    // Sync the code textarea after successful parsing
                     __userEditedSinceSync = false;
                     showCode();
+                    console.log('✅ Successfully loaded blocks from code');
+                } else {
+                    console.log('⚠️ No relevant blocks found in code');
                 }
-                return rebuilt;
+                
+                return success;
+            } catch (error) {
+                console.error('❌ Error loading workspace from code:', error);
+                hynthera_output({
+                    message: 'Failed to parse code: ' + error.message, 
+                    type: 'error'
+                });
+                return false;
             }
-            // Markers present: clear and rebuild honoring positions
-            workspace.clear();
-            let currentPos = {x:20,y:20};
-            // Very small parser: we look for patterns of hynthera_output(...) to create print or warn blocks.
-            function makePrintBlock(text, isWarn, pos){
-                const blockType = isWarn ? 'warn_output' : 'print_output';
-                const newBlock = workspace.newBlock(blockType);
-                newBlock.initSvg();
-                // Create a text block child
-                const textBlock = workspace.newBlock('text');
-                textBlock.initSvg();
-                textBlock.setFieldValue(text, 'TEXT');
-                const input = newBlock.getInput('TEXT');
-                if (input) input.connection.connect(textBlock.outputConnection);
-                newBlock.moveBy(pos.x, pos.y);
-                newBlock.render();
-                textBlock.render();
-            }
-            const makeLoopBlock = (type, condition, pos) => {
-                let blockType = 'controls_whileUntil';
-                if (type === 'for') blockType = 'controls_repeat_ext';
-                
-                const newBlock = workspace.newBlock(blockType);
-                newBlock.initSvg();
-                
-                if (type === 'for') {
-                    // Try to extract repeat count from for loop
-                    const countMatch = condition.match(/count\s*<\s*(\d+)/);
-                    if (countMatch) {
-                        const numBlock = workspace.newBlock('math_number');
-                        numBlock.initSvg();
-                        numBlock.setFieldValue(countMatch[1], 'NUM');
-                        const input = newBlock.getInput('TIMES');
-                        if (input) input.connection.connect(numBlock.outputConnection);
-                        numBlock.render();
-                    }
-                } else if (type === 'while') {
-                    // For while loops, create a simple true condition
-                    const boolBlock = workspace.newBlock('logic_boolean');
-                    boolBlock.initSvg();
-                    boolBlock.setFieldValue('TRUE', 'BOOL');
-                    const input = newBlock.getInput('BOOL');
-                    if (input) input.connection.connect(boolBlock.outputConnection);
-                    boolBlock.render();
-                }
-                
-                newBlock.moveBy(pos.x, pos.y);
-                newBlock.render();
-                return true;
-            };
-
-            const makeIfBlock = (condition, pos) => {
-                const newBlock = workspace.newBlock('controls_if');
-                newBlock.initSvg();
-                
-                // Create a simple true condition for now
-                const boolBlock = workspace.newBlock('logic_boolean');
-                boolBlock.initSvg();
-                boolBlock.setFieldValue('TRUE', 'BOOL');
-                const input = newBlock.getInput('IF0');
-                if (input) input.connection.connect(boolBlock.outputConnection);
-                boolBlock.render();
-                
-                newBlock.moveBy(pos.x, pos.y);
-                newBlock.render();
-                return true;
-            };
-
-            const makeCommentBlock = (text, pos) => {
-                const newBlock = workspace.newBlock('comment');
-                newBlock.initSvg();
-                newBlock.setFieldValue(text, 'TEXT');
-                newBlock.moveBy(pos.x, pos.y);
-                newBlock.render();
-                return true;
-            };
-
-            for (let i=0;i<lines.length;i++) {
-                const line = lines[i];
-                const posMatch = line.match(/^\/\/ BLOCK_POS:(-?\d+),(-?\d+)/);
-                if (posMatch) {
-                    currentPos = {x: parseInt(posMatch[1],10), y: parseInt(posMatch[2],10)};
-                    continue;
-                }
-                
-                // Handle comments
-                const commentMatch = line.match(/^--\s*(.*)/);
-                if (commentMatch) {
-                    if (makeCommentBlock(commentMatch[1] || 'comment', currentPos)) {
-                        rebuilt = true;
-                        continue;
-                    }
-                }
-                
-                // Handle loops
-                const forMatch = line.match(/for\s*\(\s*[^;]*;\s*([^;]*);[^)]*\)\s*\{/);
-                if (forMatch) {
-                    if (makeLoopBlock('for', forMatch[1], currentPos)) {
-                        rebuilt = true;
-                        continue;
-                    }
-                }
-                
-                const whileMatch = line.match(/while\s*\(\s*([^)]*)\s*\)\s*\{/);
-                if (whileMatch) {
-                    if (makeLoopBlock('while', whileMatch[1], currentPos)) {
-                        rebuilt = true;
-                        continue;
-                    }
-                }
-                
-                // Handle if statements
-                const ifMatch = line.match(/if\s*\(\s*([^)]*)\s*\)\s*\{/);
-                if (ifMatch) {
-                    if (makeIfBlock(ifMatch[1], currentPos)) {
-                        rebuilt = true;
-                        continue;
-                    }
-                }
-                
-                // Extract simple output calls
-                // hynthera_output({message:'text', type:'warn'}) or hynthera_output("text");
-                const warnObjMatch = line.match(/\bwarn\(\s*['"]([^'"]*)['"]\s*\)/);
-                if (warnObjMatch) {
-                    makePrintBlock(warnObjMatch[1], true, currentPos);
-                    rebuilt = true;
-                    continue;
-                }
-                const errObjMatch = line.match(/hynthera_output\(\{[^}]*message:\s*['"]([^'"]*)['"][^}]*type:\s*['"]error['"][^}]*\}\)/);
-                if (errObjMatch) {
-                    // Map errors to warn_output? We'll just use print_output (info) to avoid red block confusion.
-                    makePrintBlock(errObjMatch[1], false, currentPos);
-                    rebuilt = true;
-                    continue;
-                }
-                const genericObjMatch = line.match(/\bprint\(\s*['"]([^'"]*)['"]\s*\)/);
-                if (genericObjMatch) {
-                    makePrintBlock(genericObjMatch[1], false, currentPos);
-                    rebuilt = true;
-                    continue;
-                }
-                const hyntheraMatch = line.match(/hynthera_output\(\s*['"]([^'"]*)['"]\s*\)/);
-                if (hyntheraMatch) {
-                    makePrintBlock(hyntheraMatch[1], false, currentPos);
-                    rebuilt = true;
-                    continue;
-                }
-                
-                // Variable assignment from RobloxAPI expression
-                const asg = line.match(/^(?:const|let|var)?\s*([A-Za-z_$][\w$]*)\s*=\s*(.*?);?\s*$/);
-                if (asg && /RobloxAPI\./.test(line)) {
-                    const varName = asg[1]; const rhs = asg[2]; const exprBlock = buildExpr(rhs);
-                    if (exprBlock) {
-                        ensureVar(varName);
-                        const setb = workspace.newBlock('variables_set'); setb.initSvg(); setb.setFieldValue(varName,'VAR'); const inp=setb.getInput('VALUE'); if (inp) inp.connection.connect(exprBlock.outputConnection); setb.moveBy(currentPos.x,currentPos.y); setb.render(); rebuilt = true; continue;
-                    }
-                }
-                // Direct statements like setPosition/setWalkSpeed
-                if (/RobloxAPI\./.test(line)) {
-                    if (tryBuildStatement(line, currentPos)) { rebuilt = true; continue; }
-                    // Fallback: wrap value-returning expr in print
-                    const ex = buildExpr(line.replace(/;$/, ''));
-                    if (ex) { const pb=workspace.newBlock('print_output'); pb.initSvg(); const inp=pb.getInput('TEXT'); if (inp) inp.connection.connect(ex.outputConnection); pb.moveBy(currentPos.x,currentPos.y); pb.render(); rebuilt = true; continue; }
-                }
-            }
-            if (rebuilt) {
-                __userEditedSinceSync = false;
-                showCode(); // regenerate with cleaned ordering
-            }
-            return rebuilt;
         }
 
     async function runCode() {
@@ -2054,9 +1768,17 @@
                 if (__isUpdatingCode) return;
                 if (__codeLoadDebounce) clearTimeout(__codeLoadDebounce);
                 __codeLoadDebounce = setTimeout(()=> {
-                    const rebuilt = loadWorkspaceFromCode(codeEl.value);
-                    // If we managed to rebuild blocks, mark as synced; else keep userEdited flag
+                    const txt = codeEl.value || '';
+                    if (!txt.trim()) {
+                        try { workspace.clear(); } catch(_) {}
+                        __userEditedSinceSync = false;
+                        __lastGeneratedCode = '';
+                        return;
+                    }
+                    let rebuilt = false;
+                    try { rebuilt = deserializeWorkspaceColumns(txt, true); } catch(_){ rebuilt = false; }
                     __userEditedSinceSync = !rebuilt;
+                    if (rebuilt) showCode();
                 }, 400);
             };
             codeEl.addEventListener('input', () => { __userEditedSinceSync = true; scheduleParse(); });
@@ -2075,16 +1797,13 @@
         <xml xmlns="https://developers.google.com/blockly/xml">
             <block type="when_start_clicked" x="20" y="20">
                 <next>
-                    <block type="comment">
-                        <field name="TEXT">yo wtf twin</field>
+                    <block type="print_output">
+                        <value name="TEXT">
+                            <block type="text">
+                                <field name="TEXT">🎮 Getting Roblox services...</field>
+                            </block>
+                        </value>
                         <next>
-                            <block type="print_output">
-                                <value name="TEXT">
-                                    <block type="text">
-                                        <field name="TEXT">🎮 Getting Roblox services...</field>
-                                    </block>
-                                </value>
-                                <next>
                             <block type="variables_set">
                                 <field name="VAR">game</field>
                                 <value name="VALUE">
@@ -2198,6 +1917,397 @@
         setTimeout(applyDarkFixes, 1000);
         const obs = new MutationObserver(()=>applyDarkFixes());
         obs.observe(document.body,{childList:true,subtree:true});
+    
+    // --- Custom Column/Table Based Serialization Format ---
+    // Spec Overview:
+    // Root object: { version: 1, variables: [{name,type,id}], columns: [ Column, ... ] }
+    // Column: { id, x, y, blocks: [ Block, ... ] }
+    // Block: { type, fields:{name:value}, mutation?:string, inputs:{ inputName: Value | { columns:[Column] } } , shadow?:bool }
+    // Value (for value inputs): { block: Block } (single nested block tree) OR primitive literal string/number if we later optimize.
+    // Statement inputs become nested column sets: { columns:[Column] } allowing multi-stack bodies (e.g. IF with ELSE, ELSEIF future).
+    // Positions only stored for heads of each column (top-most block). Nested statement columns also get pseudo x,y relative to parent (optional: we store parent offset for clarity).
+
+    function collectVariablesForColumnsFormat(ws){
+        try { return ws.getAllVariables().map(v=>({name:v.name, type:v.type||'', id:v.getId()})); } catch(_){ return []; }
+    }
+
+    function blockToPlain(block, visited){
+        if(!block || visited.has(block.id)) return null;
+        visited.add(block.id);
+        const obj = { type: block.type, fields:{}, inputs:{} };
+        // Fields
+        if(block.inputList){
+            block.inputList.forEach(inp=>{
+                if(inp.fieldRow){
+                    inp.fieldRow.forEach(f=>{ if(f && typeof f.getValue === 'function' && f.name){ obj.fields[f.name]=f.getValue(); }});
+                }
+            });
+        }
+        // Mutation
+        if(typeof block.mutationToDom === 'function'){
+            try { const m = block.mutationToDom(); if(m){ obj.mutation = m.outerHTML; } } catch(_){ }
+        }
+        // Inputs (value & statement)
+        if(block.inputList){
+            block.inputList.forEach(inp=>{
+                if(!inp.name) return;
+                const target = inp.connection && inp.connection.targetBlock && inp.connection.targetBlock();
+                if(!target) return;
+                if(inp.type === Blockly.NEXT_STATEMENT || inp.type === Blockly.INPUT_STATEMENT){
+                    // Statement chain => nested columns (could be multiple stacks if chain splits, but usually linear)
+                    const nestedHead = target; // head of nested column
+                    const nestedColumns = [];
+                    const col = plainifyColumn(nestedHead, visited, true);
+                    if(col) nestedColumns.push(col);
+                    if(nestedColumns.length){ obj.inputs[inp.name] = { columns: nestedColumns }; }
+                } else { // Value input
+                    const valPlain = blockToPlain(target, visited);
+                    if(valPlain) obj.inputs[inp.name] = { block: valPlain };
+                }
+            });
+        }
+        return obj;
+    }
+
+    function plainifyColumn(headBlock, visited, isNested){
+        if(!headBlock) return null;
+        // Gather linear stack (linked by nextConnection)
+        const headXY = headBlock.getRelativeToSurfaceXY();
+        const column = { id: headBlock.id, x: headXY.x, y: headXY.y, blocks: [] };
+        if(isNested){ column.isNested = true; }
+        let cur = headBlock;
+        while(cur){
+            const p = blockToPlain(cur, visited);
+            if(p) column.blocks.push(p);
+            const next = cur.getNextBlock && cur.getNextBlock();
+            cur = next;
+        }
+        return column;
+    }
+
+    window.serializeWorkspaceColumns = function(){
+        try {
+            const ws = workspace;
+            const visited = new Set();
+            const topBlocks = ws.getTopBlocks(true);
+            const columns = topBlocks.map(tb=>plainifyColumn(tb, visited, false)).filter(Boolean);
+            const data = { version:1, generated:new Date().toISOString(), variables: collectVariablesForColumnsFormat(ws), columns };
+            const json = JSON.stringify(data, null, 2);
+            console.log('Serialized columns format:', data);
+            return json;
+        } catch(e){
+            console.error('serializeWorkspaceColumns error', e); return '{}';
+        }
+    };
+
+    function applyPlainBlock(ws, plain){
+        if(!plain) return null;
+        let b;
+        try { b = ws.newBlock(plain.type); } catch(e){ console.warn('Unknown block type', plain.type); return null; }
+        // Fields
+        if(plain.fields){
+            for(const k in plain.fields){
+                try { b.setFieldValue(String(plain.fields[k]), k); } catch(_){ }
+            }
+        }
+        // Mutation
+        if(plain.mutation && typeof b.domToMutation === 'function'){
+            try {
+                const div = document.createElement('div'); div.innerHTML = plain.mutation.trim();
+                const mutNode = div.firstElementChild; if(mutNode) b.domToMutation(mutNode);
+            } catch(_){ }
+        }
+        // Value inputs
+        if(plain.inputs){
+            for(const inputName in plain.inputs){
+                const spec = plain.inputs[inputName];
+                if(spec && spec.block){
+                    const child = applyPlainBlock(ws, spec.block);
+                    if(child){
+                        const inp = b.getInput(inputName);
+                        if(inp && inp.connection && child.outputConnection){
+                            try { inp.connection.connect(child.outputConnection); } catch(_){ }
+                        }
+                    }
+                }
+            }
+        }
+        b.initSvg && b.initSvg();
+        b.render && b.render();
+        // Statement inputs (after value so blocks exist)
+        if(plain.inputs){
+            for(const inputName in plain.inputs){
+                const spec = plain.inputs[inputName];
+                if(spec && spec.columns){
+                    // Only first column chain connected (Blockly statements single chain). Extra columns ignored for now.
+                    const firstCol = spec.columns[0];
+                    if(firstCol){
+                        let prevInChain = null;
+                        firstCol.blocks.forEach(blockPlain=>{
+                            const child = applyPlainBlock(ws, blockPlain);
+                            if(!child) return;
+                            if(!prevInChain){
+                                const inp = b.getInput(inputName);
+                                if(inp && inp.connection && child.previousConnection){
+                                    try { inp.connection.connect(child.previousConnection); } catch(_){ }
+                                }
+                            } else if(prevInChain.nextConnection && child.previousConnection){
+                                try { prevInChain.nextConnection.connect(child.previousConnection); } catch(_){ }
+                            }
+                            prevInChain = child;
+                        });
+                    }
+                }
+            }
+        }
+        return b;
+    }
+
+    window.deserializeWorkspaceColumns = function(json, clear=true){
+        try {
+            const data = (typeof json === 'string') ? JSON.parse(json) : json;
+            if(!data || !Array.isArray(data.columns)) throw new Error('Invalid columns format');
+            if(clear) workspace.clear();
+            // Variables
+            if(Array.isArray(data.variables)){
+                data.variables.forEach(v=>{ try { workspace.createVariable(v.name, v.type||'', v.id); } catch(_){ } });
+            }
+            // Columns
+            data.columns.forEach(col=>{
+                if(!col || !Array.isArray(col.blocks) || !col.blocks.length) return;
+                let prev = null;
+                col.blocks.forEach(pb=>{
+                    const created = applyPlainBlock(workspace, pb);
+                    if(!created) return;
+                    if(!prev){
+                        try { created.moveBy(col.x || 20, col.y || 20); } catch(_){ }
+                    } else if(prev.nextConnection && created.previousConnection){
+                        try { prev.nextConnection.connect(created.previousConnection); } catch(_){ }
+                    }
+                    prev = created;
+                });
+            });
+            workspace.refreshToolboxSelection && workspace.refreshToolboxSelection();
+            showCode();
+            return true;
+        } catch(e){ console.error('deserializeWorkspaceColumns error', e); return false; }
+    };
+
+    // Optional: export to a Lua-like table string for external storage
+    window.columnsJsonToLua = function(json){
+        try {
+            const data = (typeof json === 'string') ? JSON.parse(json) : json;
+            function esc(str){ return String(str).replace(/\\/g,'\\\\').replace(/"/g,'\\"'); }
+            function blockToLua(b){
+                let parts = [`type="${esc(b.type)}"`];
+                if(b.fields && Object.keys(b.fields).length){
+                    const f = Object.entries(b.fields).map(([k,v])=>`${k}="${esc(v)}"`).join(',');
+                    parts.push(`fields={${f}}`);
+                }
+                if(b.inputs){
+                    const inpParts = [];
+                    for(const k in b.inputs){
+                        const spec = b.inputs[k];
+                        if(spec.block){ inpParts.push(`${k}={block=${blockToLua(spec.block)}}`); }
+                        if(spec.columns){ inpParts.push(`${k}={columns={${spec.columns.map(c=>columnToLua(c)).join(',')}}}`); }
+                    }
+                    if(inpParts.length) parts.push(`inputs={${inpParts.join(',')}}`);
+                }
+                return `{${parts.join(',')}}`;
+            }
+            function columnToLua(c){
+                return `{x=${c.x||0},y=${c.y||0},blocks={${c.blocks.map(b=>blockToLua(b)).join(',')}}}`;
+            }
+            const lua = `return {version=${data.version||1},columns={${data.columns.map(c=>columnToLua(c)).join(',')}}}`;
+            return lua;
+        } catch(e){ return '-- lua export failed: '+e.message; }
+    };
+
+    // Hook up buttons
+    // Tabs system
+    let __tabs = [];// {id,name,hash,contentJson,lastSaved}
+    let __activeTabId = null;
+    const EMPTY_PROGRAM_JSON = () => JSON.stringify({version:1,generated:new Date().toISOString(),variables:[],columns:[]},null,2);
+    let __autosaveTimer = null;
+    let __workspaceDirty = false;
+    const PROGRAM_BASE_DIR = 'HyntheraAssets'; // native host should map to C:/ProgramData/HyntheraAssets/
+    const PROGRAM_SUB_DIR = 'programs';        // final path: C:/ProgramData/HyntheraAssets/programs
+
+    function newTabName(base='Program'){
+        let i=1; while(__tabs.some(t=>t.name===base+i)) i++; return base+i;
+    }
+    function createTab(name, contentJson){
+        // Save current active before creating new blank
+        saveActiveTab();
+        const id = Math.random().toString(36).slice(2,12);
+        const hash = id.slice(0,6);
+        const tab = {id, hash, name: name||newTabName(), contentJson: contentJson || EMPTY_PROGRAM_JSON(), lastSaved:null};
+        __tabs.push(tab);
+        renderTabs();
+        setActiveTab(id,false);
+        requestAnimationFrame(()=>{ const bar=document.getElementById('tabsBar'); if(bar) bar.scrollLeft = bar.scrollWidth; });
+        saveProgram(tab); // initial save
+        return tab;
+    }
+    function deleteTab(id){
+        const idx = __tabs.findIndex(t=>t.id===id);
+        if(idx===-1) return;
+        const removed = __tabs.splice(idx,1)[0];
+        if(removed) { postDeleteProgram(removed); }
+        if(__activeTabId===id){ __activeTabId = __tabs[0] ? __tabs[0].id : null; if(__activeTabId) loadTabIntoWorkspace(__activeTabId); else { workspace.clear(); createTab(); } }
+        renderTabs(); saveTabs(); showCode();
+    }
+    function setActiveTab(id, saveCurrent=true){
+        if(saveCurrent && __activeTabId){
+            const current = __tabs.find(t=>t.id===__activeTabId);
+            if(current){ current.contentJson = serializeWorkspaceColumns(); }
+        }
+        __activeTabId = id;
+        loadTabIntoWorkspace(id);
+        renderTabs();
+    }
+    function loadTabIntoWorkspace(id){
+        const t = __tabs.find(x=>x.id===id); if(!t) return;
+        try { deserializeWorkspaceColumns(t.contentJson, true); } catch(_){ workspace.clear(); }
+        __userEditedSinceSync = false; showCode();
+        __workspaceDirty = false;
+    }
+    function renderTabs(){
+        const bar = document.getElementById('tabsBar'); if(!bar) return;
+        Array.from(bar.querySelectorAll('.tabBtn')).forEach(n=>n.remove());
+        __tabs.forEach(tab=>{
+            const btn = document.createElement('div');
+            btn.className='tabBtn';
+            btn.style.cssText='flex:0 0 auto; position:relative; display:flex; align-items:center; max-width:220px; padding:6px 30px 6px 12px; background:'+(tab.id===__activeTabId?'#00d4aa':'#30363d')+'; color:#fff; border-radius:5px; font-size:12px; cursor:pointer; user-select:none; font-weight:'+(tab.id===__activeTabId?'600':'500')+';';
+            btn.textContent=tab.name;
+            const close=document.createElement('span');
+            close.textContent='×';
+            close.style.cssText='position:absolute; right:6px; top:2px; font-weight:800; font-size:18px; line-height:16px; padding:0 4px;';
+            close.onclick=(e)=>{ e.stopPropagation(); deleteTab(tab.id); };
+            btn.appendChild(close);
+            btn.ondblclick=()=>{ startRenameTab(tab.id, btn); };
+            btn.onclick=()=>{ if(tab.id!==__activeTabId) setActiveTab(tab.id); };
+            // Drag & drop
+            btn.draggable = true;
+            btn.addEventListener('dragstart', e=>{ e.dataTransfer.setData('text/plain', tab.id); e.dataTransfer.effectAllowed='move'; });
+            btn.addEventListener('dragover', e=>{ e.preventDefault(); });
+            btn.addEventListener('drop', e=>{ e.preventDefault(); const dragId = e.dataTransfer.getData('text/plain'); if(!dragId||dragId===tab.id) return; reorderTabs(dragId, tab.id); });
+            bar.insertBefore(btn, document.getElementById('addTabBtn'));
+        });
+        bar.style.overflowX = (__tabs.length>6)?'auto':'hidden';
+        if(__tabs.length>6) bar.scrollLeft = bar.scrollWidth;
+    }
+    function reorderTabs(dragId, targetId){
+        const from = __tabs.findIndex(t=>t.id===dragId); const to = __tabs.findIndex(t=>t.id===targetId);
+        if(from===-1||to===-1||from===to) return;
+        const [m] = __tabs.splice(from,1);
+        __tabs.splice(to,0,m);
+        renderTabs(); saveTabs();
+    }
+    function startRenameTab(id, btn){
+        const tab = __tabs.find(t=>t.id===id); if(!tab) return;
+        const input = document.createElement('input');
+        input.type='text'; input.value=tab.name; input.style.cssText='width:100%; border:none; outline:none; font-size:11px; background:#111; color:#fff; padding:2px 18px 2px 4px; border-radius:3px;';
+        btn.innerHTML=''; btn.appendChild(input); input.focus(); input.select();
+        const finish=(commit)=>{ if(commit){ const v=input.value.trim(); if(v) tab.name=v; } renderTabs(); saveTabs(); };
+        input.onblur=()=>finish(true);
+        input.onkeydown=e=>{ if(e.key==='Enter') finish(true); else if(e.key==='Escape') finish(false); };
+    }
+    function sanitizeFileName(n){ return n.replace(/[^a-zA-Z0-9._ -]/g,'_').slice(0,60); }
+    function saveProgram(tab){
+        if(!tab) return;
+        const json = serializeWorkspaceColumns();
+        // Determine if workspace has at least one block (avoid saving truly empty programs)
+        try {
+            const parsed = JSON.parse(json);
+            const hasBlocks = parsed && parsed.columns && parsed.columns.some(c=>c.blocks && c.blocks.length);
+            if(!hasBlocks) return; // skip saving empty
+        } catch(_){ return; }
+        tab.contentJson = json;
+        tab.lastSaved = json;
+        try {
+            const fileName = sanitizeFileName(tab.name)+'_'+tab.hash+'.json';
+            const payload = {type:'saveProgram', name:tab.name, hash:tab.hash, file:fileName, dir:PROGRAM_SUB_DIR, base:PROGRAM_BASE_DIR, content:tab.contentJson};
+            if(window.chrome && window.chrome.webview){ window.chrome.webview.postMessage(JSON.stringify(payload)); }
+            else {
+                const all = JSON.parse(localStorage.getItem('hynthera_programs_v2')||'[]');
+                const idx = all.findIndex(p=>p.hash===tab.hash);
+                if(idx>-1) all[idx]=payload; else all.push(payload);
+                localStorage.setItem('hynthera_programs_v2', JSON.stringify(all));
+            }
+        } catch(_){ }
+    }
+    function postDeleteProgram(tab){
+        try { const payload = {type:'deleteProgram', hash:tab.hash, dir:PROGRAM_SUB_DIR, base:PROGRAM_BASE_DIR}; if(window.chrome && window.chrome.webview) window.chrome.webview.postMessage(JSON.stringify(payload)); else {
+            const all = JSON.parse(localStorage.getItem('hynthera_programs_v2')||'[]').filter(p=>p.hash!==tab.hash); localStorage.setItem('hynthera_programs_v2', JSON.stringify(all));
+        } } catch(_){ }
+    }
+    function saveTabs(){ // batch convenience
+        __tabs.forEach(t=>saveProgram(t));
+    }
+    function saveActiveTab(){ const t = __tabs.find(x=>x.id===__activeTabId); if(t) saveProgram(t); }
+    function loadTabsFromStorage(){
+        try { if(window.chrome && window.chrome.webview){ window.chrome.webview.postMessage(JSON.stringify({type:'loadProgramsRequest'})); setTimeout(()=>{ if(!__tabs.length) loadTabsLocal(); },800); } else loadTabsLocal(); } catch(_){ loadTabsLocal(); }
+    }
+    function loadTabsLocal(){
+        try { const raw = localStorage.getItem('hynthera_programs_v2'); if(raw){ const arr=JSON.parse(raw); if(Array.isArray(arr)){ arr.forEach(p=>{ const id = Math.random().toString(36).slice(2,12); __tabs.push({id, name:p.name, hash:p.hash||id.slice(0,6), contentJson:p.content, lastSaved:p.content}); }); } } } catch(_){ }
+        if(!__tabs.length) createTab('Program1');
+        setActiveTab(__tabs[0].id,false);
+    }
+    // Listen for native response
+    window.addEventListener('message', e=>{
+        try { const data = JSON.parse(e.data); if(data.type==='loadProgramsResponse' && Array.isArray(data.programs)) { __tabs=[]; data.programs.forEach(p=>{ const id=Math.random().toString(36).slice(2,12); __tabs.push({id, name:p.name, hash:p.hash||(id.slice(0,6)), contentJson:p.content, lastSaved:p.content}); }); if(__tabs.length) setActiveTab(__tabs[0].id,false); else createTab('Program1'); } } catch(_){ }
+    });
+    document.addEventListener('DOMContentLoaded',()=>{
+        const addTab = document.getElementById('addTabBtn'); if(addTab){ addTab.onclick=()=>createTab(); }
+        loadTabsFromStorage();
+    });
+
+    // Autosave after inactivity 0.4s when different from lastSaved; skip empty workspaces
+    workspace.addChangeListener(function(ev){
+        if(ev.type===Blockly.Events.UI) return;
+        __workspaceDirty = true;
+        if(__autosaveTimer) clearTimeout(__autosaveTimer);
+        __autosaveTimer = setTimeout(()=>{
+            const active = __tabs.find(t=>t.id===__activeTabId); if(!active) return;
+            const current = serializeWorkspaceColumns();
+            if(current !== active.lastSaved){
+                try {
+                    const parsed = JSON.parse(current);
+                    const hasBlocks = parsed && parsed.columns && parsed.columns.some(c=>c.blocks && c.blocks.length);
+                    if(hasBlocks){ active.contentJson = current; saveProgram(active); }
+                } catch(_){ }
+            }
+            __workspaceDirty = false;
+        },400);
+    });
+
+    (function(){
+        const exportBtn = document.getElementById('exportBlocksBtn');
+        const importBtn = document.getElementById('importBlocksBtn');
+        if(exportBtn){
+            exportBtn.addEventListener('click', ()=>{
+                const json = serializeWorkspaceColumns();
+                window.__lastExportColumnsJSON = json;
+                // Place into code textarea (non-destructive) for quick copy
+                try {
+                    const codeInput = document.getElementById('codeInput');
+                    if(codeInput){ codeInput.value = json; __userEditedSinceSync = true; }
+                } catch(_){ }
+                if(navigator.clipboard){ navigator.clipboard.writeText(json).catch(()=>{}); }
+                hynthera_output('📤 Exported blocks to custom column JSON (copied to clipboard)');
+            });
+        }
+        if(importBtn){
+            importBtn.addEventListener('click', ()=>{
+                const raw = prompt('Paste column JSON (or Lua not yet supported for import):');
+                if(!raw) return;
+                const ok = deserializeWorkspaceColumns(raw, true);
+                hynthera_output(ok ? '📥 Imported column format successfully' : '❌ Failed to import column format');
+            });
+        }
+    })();
+    // --- End Custom Column/Table Based Serialization ---
     showCode();
     </script>
 </body>
