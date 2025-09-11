@@ -2229,7 +2229,7 @@
         try { if(window.chrome && window.chrome.webview){ window.chrome.webview.postMessage(JSON.stringify({id:(Math.random().toString(36).slice(2)), function:'loadProgramsRequest', params:{}})); setTimeout(()=>{ if(!__tabs.length) loadTabsLocal(); },800); } else loadTabsLocal(); } catch(_){ loadTabsLocal(); }
     }
     function loadTabsLocal(){
-        try { const raw = localStorage.getItem('hynthera_programs_v2'); if(raw){ const arr=JSON.parse(raw); if(Array.isArray(arr)){ arr.forEach(p=>{ const id = Math.random().toString(36).slice(2,12); __tabs.push({id, name:p.name, hash:p.hash||id.slice(0,6), contentJson:p.content, lastSaved:p.content}); }); } } } catch(_){ }
+        try { const raw = localStorage.getItem('hynthera_programs_v2'); if(raw){ const arr=JSON.parse(raw); if(Array.isArray(arr)){ const seen=new Set(); arr.forEach(p=>{ const h=(p.hash||'').toString(); if(h && seen.has(h)) return; seen.add(h); const id = Math.random().toString(36).slice(2,12); __tabs.push({id, name:p.name, hash:h||id.slice(0,6), contentJson:p.content, lastSaved:p.content}); }); } } } catch(_){ }
         if(!__tabs.length) createTab('Program1');
         setActiveTab(__tabs[0].id,false);
     }
@@ -2240,7 +2240,11 @@
             // Ignore legacy unknown function errors (empty function name)
             if(data && data.error && data.error.startsWith('Unknown function')) return;
             if(Array.isArray(data.programs)) { // load programs response
-                __tabs=[]; data.programs.forEach(p=>{ const id=Math.random().toString(36).slice(2,12); __tabs.push({id, name:p.name, hash:p.hash||(id.slice(0,6)), contentJson:p.content, lastSaved:p.content}); });
+                const incoming = data.programs;
+                const existingHashes = new Set(__tabs.map(t=>t.hash));
+                // Replace full set, but dedupe by hash
+                __tabs=[]; const seen=new Set();
+                incoming.forEach(p=>{ const id=Math.random().toString(36).slice(2,12); const h=(p.hash||'').toString()||id.slice(0,6); if(seen.has(h)) return; seen.add(h); __tabs.push({id, name:p.name, hash:h, contentJson:p.content, lastSaved:p.content}); });
                 if(__tabs.length) setActiveTab(__tabs[0].id,false); else createTab('Program1');
             }
         } catch(_){ }
