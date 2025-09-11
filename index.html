@@ -266,6 +266,22 @@
                 Blockly.JavaScript.init(ws);
                 let code = Blockly.JavaScript.workspaceToCode(ws);
                 code = Blockly.JavaScript.finish(code);
+                // Remove or shrink mass single-letter declarations (var a, b, c, ... , z;) keeping only actually used ones.
+                code = (function(opt){
+                    const lines = opt.split(/\n/);
+                    for (let i=0;i<lines.length;i++){
+                        const raw = lines[i];
+                        const trimmed = raw.trim();
+                        // Flexible detect: starts with var and only comma-separated single letters (>= 10) including 'a'..'z'
+                        if(/^var\s+([a-z]\s*,\s*){10,}[a-z]\s*;?$/.test(trimmed)){
+                            const remainder = lines.slice(i+1).join('\n');
+                            const keep=[]; const letters='abcdefghijklmnopqrstuvwxyz';
+                            for (const ch of letters){ if(new RegExp('\\b'+ch+'\\b').test(remainder)) keep.push(ch); }
+                            lines[i] = keep.length ? ('var '+keep.join(', ')+';') : '';
+                        }
+                    }
+                    return lines.filter(l=>l.trim().length>0).join('\n');
+                })(code);
                 if (codeInput) {
                     codeInput.value = code || '// (empty)';
 
@@ -1307,6 +1323,14 @@
                     // Accept either plain strings or JSON {message,type}
                     try {
                         const obj = JSON.parse(data);
+                        // Suppress silent backend response logs for saves (user doesn't need to see them)
+                        if (obj && obj.path && obj.success && /ProgramData\/.+\.json$/i.test(obj.path) && !obj.error) {
+                            return; // ignore saveProgram success response
+                        }
+                        // Also ignore generic dispatcher ACKs with only id/success
+                        if (obj && obj.success && Object.keys(obj).every(k=>['id','success'].includes(k))) {
+                            return;
+                        }
                         hynthera_output(obj);
                     } catch(_) {
                         hynthera_output(String(data));
