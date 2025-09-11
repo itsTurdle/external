@@ -158,10 +158,7 @@
             <div class="code-preview" style="flex:1; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:6px; padding:0; overflow:hidden; font-family:Consolas,monospace; font-size:11px; position:relative;">
                 <div class="code-header" style="font-weight:600; margin:6px; margin-bottom:2px; font-size:10px; color:#00d4aa;">Generated / Editable Code</div>
                 <div class="code-editor" style="position:relative; height:calc(100% - 22px);">
-                    <pre style="margin:0; padding:0; min-height:100%; background:transparent;">
-                        <code id="codeHighlight" class="language-javascript hljs" style="display:block; padding:6px; white-space:pre; overflow:auto; background:transparent;"></code>
-                    </pre>
-                    <textarea id="codeInput" spellcheck="false" style="position:absolute; inset:0; width:100%; height:100%; margin:0; padding:6px; background:transparent; color:transparent; caret-color:#f0f6fc; border:none; outline:none; resize:none; line-height:1.3; font-family:Consolas,monospace; font-size:11px;">// Generated code will appear here</textarea>
+                    <textarea id="codeInput" spellcheck="false" style="width:100%; height:100%; margin:0; padding:6px; background:rgba(0,0,0,0.3); color:#f0f6fc; caret-color:#f0f6fc; border:none; outline:none; resize:none; line-height:1.3; font-family:Consolas,monospace; font-size:11px; overflow:auto;">// Generated code will appear here</textarea>
                 </div>
             </div>
             <div class="output-display" style="flex:1; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:6px; padding:6px; overflow:auto; font-family:Consolas,monospace; font-size:11px; margin-top:4px;">
@@ -169,7 +166,6 @@
                 <div id="output" style="margin:0; white-space:pre-wrap; line-height:1.3;">// Output will appear here</div>
             </div>
             <div class="button-container" style="margin-top:4px; display:flex; gap:4px; position:relative; z-index:1001; pointer-events:auto;">
-                <button id="generateBtn" style="flex:1; background:#21262d; color:#f0f6fc; border:1px solid #30363d; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:11px; position:relative; z-index:1002; pointer-events:auto;">Code</button>
                 <button id="runBtn" style="flex:1; background:#238636; color:#f0f6fc; border:1px solid #2ea043; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:11px; position:relative; z-index:1002; pointer-events:auto;">Run</button>
                 <button id="stopBtn" style="background:#da3633; color:#f0f6fc; border:1px solid #f85149; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:11px; position:relative; z-index:1002; pointer-events:auto; display:none;">Stop</button>
                 <button id="clearBtn" style="background:#656d76; color:#f0f6fc; border:1px solid #8b949e; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:11px; position:relative; z-index:1002; pointer-events:auto;">Clear</button>
@@ -183,6 +179,37 @@
         if (vb) vb.textContent = '🎮 ROBLOX API v' + window.__APP_VERSION;
     </script>
     <script>
+        // Auto-update from GitHub on startup
+        async function checkForUpdate() {
+            try {
+                console.log('Checking for updates from GitHub...');
+                const response = await fetch('https://raw.githubusercontent.com/your-username/your-repo/main/web/index.html', {
+                    cache: 'no-cache',
+                    headers: {'Cache-Control': 'no-cache'}
+                });
+                
+                if (response.ok) {
+                    const newContent = await response.text();
+                    if (newContent && newContent.length > 1000) { // Basic sanity check
+                        console.log('✅ Updated HTML downloaded from GitHub');
+                        if (window.chrome && window.chrome.webview) {
+                            window.chrome.webview.postMessage({
+                                type: 'updateHTML',
+                                content: newContent
+                            });
+                        }
+                    }
+                } else {
+                    console.log('⚠️ GitHub update failed, using cached version');
+                }
+            } catch (error) {
+                console.log('⚠️ No internet connection, using cached version');
+            }
+        }
+        
+        // Check for updates on load
+        checkForUpdate();
+        
         // Script Generator Loaded
         
         // Add manual refresh capability with F5 or Ctrl+R
@@ -199,26 +226,19 @@
         }, true);
         
         document.addEventListener('DOMContentLoaded', ()=>{
-            const genBtn = document.getElementById('generateBtn');
+
             const runBtn = document.getElementById('runBtn');
             const stopBtn = document.getElementById('stopBtn');
             const clearBtn = document.getElementById('clearBtn');
             const refreshBtn = document.getElementById('refreshBtn');
             const codeInput = document.getElementById('codeInput');
-            const codeHighlight = document.getElementById('codeHighlight');
-            const updateHighlight = (text) => {
-                if (!codeHighlight) return;
-                codeHighlight.textContent = text ?? '';
-                if (window.hljs) {
-                    try { hljs.highlightElement(codeHighlight); } catch(_){}
-                }
-            };
+
             
             // Debug: Log button elements to ensure they exist
-            console.log('Buttons found:', {genBtn, runBtn, stopBtn, clearBtn, refreshBtn});
+            console.log('Buttons found:', {runBtn, stopBtn, clearBtn, refreshBtn});
             
             // Ensure buttons are properly configured
-            [genBtn, runBtn, stopBtn, clearBtn, refreshBtn].forEach((btn, index) => {
+            [runBtn, stopBtn, clearBtn, refreshBtn].forEach((btn, index) => {
                 if (btn) {
                     btn.style.pointerEvents = 'auto';
                     btn.style.position = 'relative';
@@ -240,7 +260,7 @@
                 code = Blockly.JavaScript.finish(code);
                 if (codeInput) {
                     codeInput.value = code || '// (empty)';
-                    updateHighlight(codeInput.value);
+
                     __lastGeneratedCode = codeInput.value;
                     __userEditedSinceSync = false;
                 }
@@ -248,17 +268,9 @@
             }
 
             // Remove existing event listeners to prevent duplicates
-            genBtn.onclick = null;
             runBtn.onclick = null;
             stopBtn.onclick = null;
             clearBtn.onclick = null;
-
-            genBtn.addEventListener('click', (e)=>{
-                console.log('Generate button clicked');
-                e.preventDefault();
-                e.stopPropagation();
-                generateCode();
-            });
 
             runBtn.addEventListener('click', (e)=>{
                 console.log('Run button clicked');
@@ -273,13 +285,7 @@
                 }
             });
 
-            // Hook up live highlighting + scroll sync
-            if (codeInput && codeHighlight) {
-                const syncScroll = () => { codeHighlight.scrollTop = codeInput.scrollTop; codeHighlight.scrollLeft = codeInput.scrollLeft; };
-                codeInput.addEventListener('scroll', syncScroll);
-                codeInput.addEventListener('input', ()=>{ updateHighlight(codeInput.value); });
-                updateHighlight(codeInput.value || '');
-            }
+            // Code input is now self-contained with no highlighting overlay
 
             stopBtn.addEventListener('click', (e)=>{
                 console.log('Stop button clicked');
@@ -413,6 +419,24 @@
         Blockly.JavaScript['warn_output'] = function(block) {
             var text = Blockly.JavaScript.valueToCode(block, 'TEXT', Blockly.JavaScript.ORDER_ATOMIC) || '""';
         return 'warn(' + text + ');\n';
+        };
+
+        // Comment Block
+        Blockly.Blocks['comment'] = {
+            init: function() {
+                this.appendDummyInput()
+                    .appendField("--")
+                    .appendField(new Blockly.FieldTextInput("comment text"), "TEXT");
+                this.setPreviousStatement(true, null);
+                this.setNextStatement(true, null);
+                this.setColour('#6c757d');
+                this.setTooltip("Add a comment to your code");
+            }
+        };
+
+        Blockly.JavaScript['comment'] = function(block) {
+            var text = block.getFieldValue('TEXT') || 'comment';
+            return '-- ' + text + '\n';
         };
 
         // Roblox API Blocks - MOVED HERE TO BE DEFINED BEFORE WORKSPACE CREATION
@@ -787,6 +811,9 @@
                 <category name="💬 Output" colour="#fd79a8">
                     <block type="print_output"></block>
                     <block type="warn_output"></block>
+                    <block type="comment">
+                        <field name="TEXT">yo wtf twin</field>
+                    </block>
                 </category>
             </xml>
             `,
@@ -1450,12 +1477,16 @@
                 return false;
             }
             if (!hasMarkers) {
-                // Try a best-effort parse for simple output calls even without markers.
+                // Try a best-effort parse for various block types even without markers.
                 // We'll place them in a vertical stack starting at (20,20).
-                const simpleLines = lines.filter(l => /\bprint\(|\bwarn\(|RobloxAPI\./.test(l));
-                if (simpleLines.length === 0) return false; // nothing recognizable; keep user's code only
+                const relevantLines = lines.filter(l => 
+                    /\bprint\(|\bwarn\(|RobloxAPI\.|for\s*\(|while\s*\(|if\s*\(|\/\/\s*Event:|hynthera_output|^--\s/.test(l) && 
+                    l.trim() !== ''
+                );
+                if (relevantLines.length === 0) return false; // nothing recognizable; keep user's code only
                 workspace.clear();
                 let pos = { x: 20, y: 20 };
+                
                 const makePrint = (text, isWarn) => {
                     const blockType = isWarn ? 'warn_output' : 'print_output';
                     const newBlock = workspace.newBlock(blockType);
@@ -1471,14 +1502,118 @@
                     pos.y += 60;
                     rebuilt = true;
                 };
-                for (const l of simpleLines) {
-                    const warnObjMatch = l.match(/\bwarn\(\s*['"]([^'\"]*)['"]\s*\)/);
-                    const genericObjMatch = l.match(/\bprint\(\s*['"]([^'\"]*)['"]\s*\)/);
-                    const simpleMatch = null;
-                    if (warnObjMatch) makePrint(warnObjMatch[1], true);
-                    else if (genericObjMatch) makePrint(genericObjMatch[1], false);
-                    else if (simpleMatch) makePrint(simpleMatch[1], false);
-                    else if (/RobloxAPI\./.test(l)) {
+
+                const makeLoop = (type, condition, body) => {
+                    let blockType = 'controls_whileUntil';
+                    if (type === 'for') blockType = 'controls_repeat_ext';
+                    
+                    const newBlock = workspace.newBlock(blockType);
+                    newBlock.initSvg();
+                    
+                    if (type === 'for') {
+                        // Try to extract repeat count from for loop
+                        const countMatch = condition.match(/count\s*<\s*(\d+)/);
+                        if (countMatch) {
+                            const numBlock = workspace.newBlock('math_number');
+                            numBlock.initSvg();
+                            numBlock.setFieldValue(countMatch[1], 'NUM');
+                            const input = newBlock.getInput('TIMES');
+                            if (input) input.connection.connect(numBlock.outputConnection);
+                            numBlock.render();
+                        }
+                    } else if (type === 'while') {
+                        // For while loops, we'd need to parse the condition properly
+                        // For now, just create a simple true condition
+                        const boolBlock = workspace.newBlock('logic_boolean');
+                        boolBlock.initSvg();
+                        boolBlock.setFieldValue('TRUE', 'BOOL');
+                        const input = newBlock.getInput('BOOL');
+                        if (input) input.connection.connect(boolBlock.outputConnection);
+                        boolBlock.render();
+                    }
+                    
+                    newBlock.moveBy(pos.x, pos.y);
+                    newBlock.render();
+                    pos.y += 80;
+                    rebuilt = true;
+                };
+
+                const makeIf = (condition) => {
+                    const newBlock = workspace.newBlock('controls_if');
+                    newBlock.initSvg();
+                    
+                    // Create a simple true condition for now
+                    const boolBlock = workspace.newBlock('logic_boolean');
+                    boolBlock.initSvg();
+                    boolBlock.setFieldValue('TRUE', 'BOOL');
+                    const input = newBlock.getInput('IF0');
+                    if (input) input.connection.connect(boolBlock.outputConnection);
+                    boolBlock.render();
+                    
+                    newBlock.moveBy(pos.x, pos.y);
+                    newBlock.render();
+                    pos.y += 80;
+                    rebuilt = true;
+                };
+
+                const makeComment = (text) => {
+                    const newBlock = workspace.newBlock('comment');
+                    newBlock.initSvg();
+                    newBlock.setFieldValue(text, 'TEXT');
+                    newBlock.moveBy(pos.x, pos.y);
+                    newBlock.render();
+                    pos.y += 40;
+                    rebuilt = true;
+                };
+
+                for (const l of relevantLines) {
+                    // Handle comments
+                    const commentMatch = l.match(/^--\s*(.*)/);
+                    if (commentMatch) {
+                        makeComment(commentMatch[1] || 'comment');
+                        continue;
+                    }
+                    
+                    // Handle print/warn statements
+                    const warnMatch = l.match(/\bwarn\(\s*['"]([^'\"]*)['"]\s*\)/);
+                    const printMatch = l.match(/\bprint\(\s*['"]([^'\"]*)['"]\s*\)/);
+                    const hyntheraMatch = l.match(/hynthera_output\(\s*['"]([^'\"]*)['"]\s*\)/);
+                    
+                    if (warnMatch) {
+                        makePrint(warnMatch[1], true);
+                        continue;
+                    }
+                    if (printMatch) {
+                        makePrint(printMatch[1], false);
+                        continue;
+                    }
+                    if (hyntheraMatch) {
+                        makePrint(hyntheraMatch[1], false);
+                        continue;
+                    }
+                    
+                    // Handle loops
+                    const forMatch = l.match(/for\s*\(\s*[^;]*;\s*([^;]*);[^)]*\)\s*\{/);
+                    if (forMatch) {
+                        makeLoop('for', forMatch[1], '');
+                        continue;
+                    }
+                    
+                    const whileMatch = l.match(/while\s*\(\s*([^)]*)\s*\)\s*\{/);
+                    if (whileMatch) {
+                        makeLoop('while', whileMatch[1], '');
+                        continue;
+                    }
+                    
+                    // Handle if statements
+                    const ifMatch = l.match(/if\s*\(\s*([^)]*)\s*\)\s*\{/);
+                    if (ifMatch) {
+                        makeIf(ifMatch[1]);
+                        continue;
+                    }
+                    
+                    // Handle RobloxAPI calls
+                    if (/RobloxAPI\./.test(l)) {
                         // Try variable assignment first
                         const asg = l.match(/^(?:const|let|var)?\s*([A-Za-z_$][\w$]*)\s*=\s*(.*?);?$/);
                         if (asg) {
@@ -1522,6 +1657,65 @@
                 newBlock.render();
                 textBlock.render();
             }
+            const makeLoopBlock = (type, condition, pos) => {
+                let blockType = 'controls_whileUntil';
+                if (type === 'for') blockType = 'controls_repeat_ext';
+                
+                const newBlock = workspace.newBlock(blockType);
+                newBlock.initSvg();
+                
+                if (type === 'for') {
+                    // Try to extract repeat count from for loop
+                    const countMatch = condition.match(/count\s*<\s*(\d+)/);
+                    if (countMatch) {
+                        const numBlock = workspace.newBlock('math_number');
+                        numBlock.initSvg();
+                        numBlock.setFieldValue(countMatch[1], 'NUM');
+                        const input = newBlock.getInput('TIMES');
+                        if (input) input.connection.connect(numBlock.outputConnection);
+                        numBlock.render();
+                    }
+                } else if (type === 'while') {
+                    // For while loops, create a simple true condition
+                    const boolBlock = workspace.newBlock('logic_boolean');
+                    boolBlock.initSvg();
+                    boolBlock.setFieldValue('TRUE', 'BOOL');
+                    const input = newBlock.getInput('BOOL');
+                    if (input) input.connection.connect(boolBlock.outputConnection);
+                    boolBlock.render();
+                }
+                
+                newBlock.moveBy(pos.x, pos.y);
+                newBlock.render();
+                return true;
+            };
+
+            const makeIfBlock = (condition, pos) => {
+                const newBlock = workspace.newBlock('controls_if');
+                newBlock.initSvg();
+                
+                // Create a simple true condition for now
+                const boolBlock = workspace.newBlock('logic_boolean');
+                boolBlock.initSvg();
+                boolBlock.setFieldValue('TRUE', 'BOOL');
+                const input = newBlock.getInput('IF0');
+                if (input) input.connection.connect(boolBlock.outputConnection);
+                boolBlock.render();
+                
+                newBlock.moveBy(pos.x, pos.y);
+                newBlock.render();
+                return true;
+            };
+
+            const makeCommentBlock = (text, pos) => {
+                const newBlock = workspace.newBlock('comment');
+                newBlock.initSvg();
+                newBlock.setFieldValue(text, 'TEXT');
+                newBlock.moveBy(pos.x, pos.y);
+                newBlock.render();
+                return true;
+            };
+
             for (let i=0;i<lines.length;i++) {
                 const line = lines[i];
                 const posMatch = line.match(/^\/\/ BLOCK_POS:(-?\d+),(-?\d+)/);
@@ -1529,12 +1723,47 @@
                     currentPos = {x: parseInt(posMatch[1],10), y: parseInt(posMatch[2],10)};
                     continue;
                 }
+                
+                // Handle comments
+                const commentMatch = line.match(/^--\s*(.*)/);
+                if (commentMatch) {
+                    if (makeCommentBlock(commentMatch[1] || 'comment', currentPos)) {
+                        rebuilt = true;
+                        continue;
+                    }
+                }
+                
+                // Handle loops
+                const forMatch = line.match(/for\s*\(\s*[^;]*;\s*([^;]*);[^)]*\)\s*\{/);
+                if (forMatch) {
+                    if (makeLoopBlock('for', forMatch[1], currentPos)) {
+                        rebuilt = true;
+                        continue;
+                    }
+                }
+                
+                const whileMatch = line.match(/while\s*\(\s*([^)]*)\s*\)\s*\{/);
+                if (whileMatch) {
+                    if (makeLoopBlock('while', whileMatch[1], currentPos)) {
+                        rebuilt = true;
+                        continue;
+                    }
+                }
+                
+                // Handle if statements
+                const ifMatch = line.match(/if\s*\(\s*([^)]*)\s*\)\s*\{/);
+                if (ifMatch) {
+                    if (makeIfBlock(ifMatch[1], currentPos)) {
+                        rebuilt = true;
+                        continue;
+                    }
+                }
+                
                 // Extract simple output calls
                 // hynthera_output({message:'text', type:'warn'}) or hynthera_output("text");
                 const warnObjMatch = line.match(/\bwarn\(\s*['"]([^'"]*)['"]\s*\)/);
                 if (warnObjMatch) {
                     makePrintBlock(warnObjMatch[1], true, currentPos);
-                    currentPos.y += 60;
                     rebuilt = true;
                     continue;
                 }
@@ -1542,37 +1771,37 @@
                 if (errObjMatch) {
                     // Map errors to warn_output? We'll just use print_output (info) to avoid red block confusion.
                     makePrintBlock(errObjMatch[1], false, currentPos);
-                    currentPos.y += 60;
                     rebuilt = true;
                     continue;
                 }
                 const genericObjMatch = line.match(/\bprint\(\s*['"]([^'"]*)['"]\s*\)/);
                 if (genericObjMatch) {
                     makePrintBlock(genericObjMatch[1], false, currentPos);
-                    currentPos.y += 60;
                     rebuilt = true;
                     continue;
                 }
-                if (false) {
-                    currentPos.y += 60;
+                const hyntheraMatch = line.match(/hynthera_output\(\s*['"]([^'"]*)['"]\s*\)/);
+                if (hyntheraMatch) {
+                    makePrintBlock(hyntheraMatch[1], false, currentPos);
                     rebuilt = true;
                     continue;
                 }
+                
                 // Variable assignment from RobloxAPI expression
                 const asg = line.match(/^(?:const|let|var)?\s*([A-Za-z_$][\w$]*)\s*=\s*(.*?);?\s*$/);
                 if (asg && /RobloxAPI\./.test(line)) {
                     const varName = asg[1]; const rhs = asg[2]; const exprBlock = buildExpr(rhs);
                     if (exprBlock) {
                         ensureVar(varName);
-                        const setb = workspace.newBlock('variables_set'); setb.initSvg(); setb.setFieldValue(varName,'VAR'); const inp=setb.getInput('VALUE'); if (inp) inp.connection.connect(exprBlock.outputConnection); setb.moveBy(currentPos.x,currentPos.y); setb.render(); currentPos.y += 70; rebuilt = true; continue;
+                        const setb = workspace.newBlock('variables_set'); setb.initSvg(); setb.setFieldValue(varName,'VAR'); const inp=setb.getInput('VALUE'); if (inp) inp.connection.connect(exprBlock.outputConnection); setb.moveBy(currentPos.x,currentPos.y); setb.render(); rebuilt = true; continue;
                     }
                 }
                 // Direct statements like setPosition/setWalkSpeed
                 if (/RobloxAPI\./.test(line)) {
-                    if (tryBuildStatement(line, currentPos)) { currentPos.y += 70; rebuilt = true; continue; }
+                    if (tryBuildStatement(line, currentPos)) { rebuilt = true; continue; }
                     // Fallback: wrap value-returning expr in print
                     const ex = buildExpr(line.replace(/;$/, ''));
-                    if (ex) { const pb=workspace.newBlock('print_output'); pb.initSvg(); const inp=pb.getInput('TEXT'); if (inp) inp.connection.connect(ex.outputConnection); pb.moveBy(currentPos.x,currentPos.y); pb.render(); currentPos.y += 60; rebuilt = true; continue; }
+                    if (ex) { const pb=workspace.newBlock('print_output'); pb.initSvg(); const inp=pb.getInput('TEXT'); if (inp) inp.connection.connect(ex.outputConnection); pb.moveBy(currentPos.x,currentPos.y); pb.render(); rebuilt = true; continue; }
                 }
             }
             if (rebuilt) {
@@ -1846,13 +2075,16 @@
         <xml xmlns="https://developers.google.com/blockly/xml">
             <block type="when_start_clicked" x="20" y="20">
                 <next>
-                    <block type="print_output">
-                        <value name="TEXT">
-                            <block type="text">
-                                <field name="TEXT">🎮 Getting Roblox services...</field>
-                            </block>
-                        </value>
+                    <block type="comment">
+                        <field name="TEXT">yo wtf twin</field>
                         <next>
+                            <block type="print_output">
+                                <value name="TEXT">
+                                    <block type="text">
+                                        <field name="TEXT">🎮 Getting Roblox services...</field>
+                                    </block>
+                                </value>
+                                <next>
                             <block type="variables_set">
                                 <field name="VAR">game</field>
                                 <value name="VALUE">
