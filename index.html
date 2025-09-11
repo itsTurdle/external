@@ -1526,47 +1526,26 @@
         }
 
     async function runCode() {
-            if (isRunning) {
-                hynthera_output({message:'Code is already running! Please wait...', type:'warn'});
-                return;
-            }
-
-            isRunning = true;
-            let codeArea = document.getElementById('codeInput');
-            let code = codeArea ? codeArea.value : Blockly.JavaScript.workspaceToCode(workspace);
-            
-            if (!code.trim()) {
-                hynthera_output({message:'No blocks to execute - add some blocks first.', type:'warn'});
-                isRunning = false;
-                return;
-            }
-
-            try {
-                // Safe execution with loop limits and timeout
-                // Ensure code runs within an async context so 'await' is valid
-                const needsIIFE = !/\(async\s*\(.*\)\s*=>|async\s*function/.test(code);
-                const wrapped = needsIIFE ? `(async()=>{\n${code}\n})()` : code;
-                await executeCodeSafely(wrapped);
-                
-            } catch (error) {
-                hynthera_output({message:'Error: ' + error.message, type:'error'});
-                console.error('Blockly execution error:', error);
-            } finally {
-                isRunning = false;
-                // Reset button states
-                const runBtn = document.getElementById('runBtn');
-                const stopBtn = document.getElementById('stopBtn');
-                if (runBtn && stopBtn) {
-                    runBtn.style.display = 'block';
-                    stopBtn.style.display = 'none';
-                }
-            }
-            
-            // If the user pasted/typed raw code that isn't synced to blocks, do NOT overwrite it
-            if (!__userEditedSinceSync) {
-                showCode();
-            }
+        if (isRunning) return;
+        // Always derive runnable JS from workspace, never from JSON in the code textarea
+        const topBlocks = workspace.getTopBlocks(false);
+        if (!topBlocks.length) { return; }
+        let code = Blockly.JavaScript ? Blockly.JavaScript.workspaceToCode(workspace) : '';
+        if (!code.trim()) { return; }
+        isRunning = true;
+        try {
+            const needsIIFE = !/(async\s*function|\(async\s*\()/ .test(code);
+            const wrapped = needsIIFE ? `(async()=>{\n${code}\n})()` : code;
+            await executeCodeSafely(wrapped);
+        } catch (error) {
+            console.error('Blockly execution error:', error);
+        } finally {
+            isRunning = false;
+            const runBtn = document.getElementById('runBtn');
+            const stopBtn = document.getElementById('stopBtn');
+            if (runBtn && stopBtn) { runBtn.style.display='block'; stopBtn.style.display='none'; }
         }
+    }
 
         // Transform loops to be async and non-blocking
         function transformLoopsToAsync(code) {
@@ -2227,18 +2206,18 @@
         tab.lastSaved = json;
         try {
             const fileName = sanitizeFileName(tab.name)+'_'+tab.hash+'.json';
-            const payload = {type:'saveProgram', name:tab.name, hash:tab.hash, file:fileName, dir:PROGRAM_SUB_DIR, base:PROGRAM_BASE_DIR, content:tab.contentJson};
+            const payload = { id: (crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2)), function:'saveProgram', params:{ fileName, content:tab.contentJson }};
             if(window.chrome && window.chrome.webview){ window.chrome.webview.postMessage(JSON.stringify(payload)); }
             else {
                 const all = JSON.parse(localStorage.getItem('hynthera_programs_v2')||'[]');
                 const idx = all.findIndex(p=>p.hash===tab.hash);
-                if(idx>-1) all[idx]=payload; else all.push(payload);
+                if(idx>-1) all[idx]={name:tab.name, hash:tab.hash, content:tab.contentJson}; else all.push({name:tab.name, hash:tab.hash, content:tab.contentJson});
                 localStorage.setItem('hynthera_programs_v2', JSON.stringify(all));
             }
         } catch(_){ }
     }
     function postDeleteProgram(tab){
-        try { const payload = {type:'deleteProgram', hash:tab.hash, dir:PROGRAM_SUB_DIR, base:PROGRAM_BASE_DIR}; if(window.chrome && window.chrome.webview) window.chrome.webview.postMessage(JSON.stringify(payload)); else {
+        try { const fileName = sanitizeFileName(tab.name)+'_'+tab.hash+'.json'; const payload = { id:(Math.random().toString(36).slice(2)), function:'deleteProgram', params:{ fileName }}; if(window.chrome && window.chrome.webview) window.chrome.webview.postMessage(JSON.stringify(payload)); else {
             const all = JSON.parse(localStorage.getItem('hynthera_programs_v2')||'[]').filter(p=>p.hash!==tab.hash); localStorage.setItem('hynthera_programs_v2', JSON.stringify(all));
         } } catch(_){ }
     }
@@ -2247,7 +2226,7 @@
     }
     function saveActiveTab(){ const t = __tabs.find(x=>x.id===__activeTabId); if(t) saveProgram(t); }
     function loadTabsFromStorage(){
-        try { if(window.chrome && window.chrome.webview){ window.chrome.webview.postMessage(JSON.stringify({type:'loadProgramsRequest'})); setTimeout(()=>{ if(!__tabs.length) loadTabsLocal(); },800); } else loadTabsLocal(); } catch(_){ loadTabsLocal(); }
+        try { if(window.chrome && window.chrome.webview){ window.chrome.webview.postMessage(JSON.stringify({id:(Math.random().toString(36).slice(2)), function:'loadProgramsRequest', params:{}})); setTimeout(()=>{ if(!__tabs.length) loadTabsLocal(); },800); } else loadTabsLocal(); } catch(_){ loadTabsLocal(); }
     }
     function loadTabsLocal(){
         try { const raw = localStorage.getItem('hynthera_programs_v2'); if(raw){ const arr=JSON.parse(raw); if(Array.isArray(arr)){ arr.forEach(p=>{ const id = Math.random().toString(36).slice(2,12); __tabs.push({id, name:p.name, hash:p.hash||id.slice(0,6), contentJson:p.content, lastSaved:p.content}); }); } } } catch(_){ }
@@ -2256,7 +2235,15 @@
     }
     // Listen for native response
     window.addEventListener('message', e=>{
-        try { const data = JSON.parse(e.data); if(data.type==='loadProgramsResponse' && Array.isArray(data.programs)) { __tabs=[]; data.programs.forEach(p=>{ const id=Math.random().toString(36).slice(2,12); __tabs.push({id, name:p.name, hash:p.hash||(id.slice(0,6)), contentJson:p.content, lastSaved:p.content}); }); if(__tabs.length) setActiveTab(__tabs[0].id,false); else createTab('Program1'); } } catch(_){ }
+        try {
+            const data = JSON.parse(e.data);
+            // Ignore legacy unknown function errors (empty function name)
+            if(data && data.error && data.error.startsWith('Unknown function')) return;
+            if(Array.isArray(data.programs)) { // load programs response
+                __tabs=[]; data.programs.forEach(p=>{ const id=Math.random().toString(36).slice(2,12); __tabs.push({id, name:p.name, hash:p.hash||(id.slice(0,6)), contentJson:p.content, lastSaved:p.content}); });
+                if(__tabs.length) setActiveTab(__tabs[0].id,false); else createTab('Program1');
+            }
+        } catch(_){ }
     });
     document.addEventListener('DOMContentLoaded',()=>{
         const addTab = document.getElementById('addTabBtn'); if(addTab){ addTab.onclick=()=>createTab(); }
