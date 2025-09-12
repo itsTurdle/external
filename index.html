@@ -187,36 +187,9 @@
         if (vb) vb.textContent = '🎮 ROBLOX API v' + window.__APP_VERSION;
     </script>
     <script>
-        // Auto-update from GitHub on startup
-        async function checkForUpdate() {
-            try {
-                console.log('Checking for updates from GitHub...');
-                const response = await fetch('https://raw.githubusercontent.com/itsTurdle/external/refs/heads/main/index.html', {
-                    cache: 'no-cache',
-                    headers: {'Cache-Control': 'no-cache'}
-                });
-                
-                if (response.ok) {
-                    const newContent = await response.text();
-                    if (newContent && newContent.length > 1000) { // Basic sanity check
-                        console.log('✅ Updated HTML downloaded from GitHub');
-                        if (window.chrome && window.chrome.webview) {
-                            window.chrome.webview.postMessage({
-                                type: 'updateHTML',
-                                content: newContent
-                            });
-                        }
-                    }
-                } else {
-                    console.log('⚠️ GitHub update failed, using cached version');
-                }
-            } catch (error) {
-                console.log('⚠️ No internet connection, using cached version');
-            }
-        }
-        
-        // Check for updates on load
-        checkForUpdate();
+        // Auto-update disabled to prevent CORS errors
+        // async function checkForUpdate() { ... }
+        // checkForUpdate();
         
         // Script Generator Loaded
         
@@ -315,11 +288,7 @@
                 console.log('Stop button clicked');
                 e.preventDefault();
                 e.stopPropagation();
-                shouldStop = true;
-                isRunning = false;
-                runBtn.style.display = 'block';
-                stopBtn.style.display = 'none';
-                hynthera_output('🛑 Execution stopped by user');
+                stopExecution();
             });
 
             clearBtn.addEventListener('click', (e)=>{
@@ -808,6 +777,8 @@
                     <block type="controls_whileUntil"></block>
                     <block type="controls_for"></block>
                     <block type="controls_forEach"></block>
+                    <block type="loop_break"></block>
+                    <block type="loop_continue"></block>
                     <block type="wait_seconds">
                         <value name="SECONDS">
                             <block type="math_number">
@@ -856,16 +827,15 @@
             sounds: false
         });
 
-        // Global variables for script execution
+        // Global execution flags
         let isRunning = false;
         let shouldStop = false;
-        // Fallback cooperative yield helpers (in case executeCodeSafely has not yet injected its version)
-        if(!window.__yield){ window.__yield = () => new Promise(r=>setTimeout(r,0)); }
-        if(typeof window.checkContinue !== 'function'){
-            window.checkContinue = async function(){
-                if (typeof shouldStop !== 'undefined' && shouldStop) throw new Error('Execution stopped by user');
-                await window.__yield();
-                return true;
+        // Unified cooperative yield helper (single place)
+        if(!window.__loopYield){
+            window.__loopYield = async function(){
+                if(shouldStop) throw new Error('Execution stopped');
+                // micro delay to keep UI responsive
+                await new Promise(r=>setTimeout(r,0));
             };
         }
 
@@ -905,26 +875,30 @@
             return code;
         };
 
-        // While / Until: emit an async-friendly loop that cooperates with scheduler.
-        // Fix: previous version only executed body once for some users due to missing checkContinue instrumentation.
-        Blockly.JavaScript['controls_whileUntil'] = function(block) {
+    // While / Until: worker-executed loop with fixed 1/45s (~22ms) delay, no safety caps.
+    Blockly.JavaScript['controls_whileUntil'] = function(block){
             const until = block.getFieldValue('MODE') === 'UNTIL';
-            const raw = Blockly.JavaScript.valueToCode(block, 'BOOL', Blockly.JavaScript.ORDER_NONE) || (until ? 'false' : 'true');
-            const cond = until ? '!(' + raw + ')' : raw; // UNTIL X  ==> while(!X)
-            let body = Blockly.JavaScript.statementToCode(block, 'DO');
-            if (body && !/\n$/.test(body)) body += '\n';
-            const guardVar = Blockly.JavaScript.variableDB_.getDistinctName('wIter', Blockly.VARIABLE_CATEGORY_NAME);
+            const test = Blockly.JavaScript.valueToCode(block,'BOOL',Blockly.JavaScript.ORDER_NONE) || (until ? 'false':'true');
+            const cond = until ? '!(' + test + ')' : test;
+            let branch = Blockly.JavaScript.statementToCode(block,'DO');
+            if(branch && !/\n$/.test(branch)) branch += '\n';
             return [
-                'let ' + guardVar + ' = 0;',
-                'while (' + cond + ') { //__ASYNC_LOOP__',
-                '  if (typeof shouldStop !== "undefined" && shouldStop) { break; }',
-                '  if (++' + guardVar + ' > 10000) { console.warn("Loop safety break (10k)"); break; }',
-                // Safe cooperative yield even if checkContinue missing
-                '  if (typeof checkContinue === "function") { await checkContinue(); } else { if(!window.__yield) window.__yield=()=>new Promise(r=>setTimeout(r,0)); await window.__yield(); }',
-                (body ? body.replace(/^/gm,'  ') : ''),
-                '}'
-            ].join('\n') + '\n';
+        'while(' + cond + '){',
+        '  await new Promise(r=>setTimeout(r,22)); // 1/45 second delay',
+        (branch? branch.replace(/^/gm,'  '):''),
+        '}'
+        ].join('\n') + '\n';
         };
+
+        // Break & Continue custom statement blocks
+        if(!Blockly.Blocks['loop_break']){
+            Blockly.Blocks['loop_break'] = { init:function(){ this.appendDummyInput().appendField('break'); this.setPreviousStatement(true); this.setColour('#2ea043'); this.setTooltip('Exit current loop'); }};
+            Blockly.JavaScript['loop_break'] = function(){ return 'break;\n'; };
+        }
+        if(!Blockly.Blocks['loop_continue']){
+            Blockly.Blocks['loop_continue'] = { init:function(){ this.appendDummyInput().appendField('continue'); this.setPreviousStatement(true); this.setColour('#2ea043'); this.setTooltip('Skip to next loop iteration'); }};
+            Blockly.JavaScript['loop_continue'] = function(){ return 'continue;\n'; };
+        }
 
     // (Removed auto TRUE injection: will be handled on native side / blocks.hpp per request.)
 
@@ -1412,9 +1386,14 @@
             }
             if (!obj.message) obj.message = '.'; // ensure something visible
 
-            line.textContent = `[${timestamp}] ${obj.type.toUpperCase()}: ${obj.message}`;
+            // Remove type prefix; keep color only
+            line.textContent = `[${timestamp}] ${obj.message}`;
+            // Determine if user is scrolled near bottom (within 40px)
+            const atBottom = Math.abs(output.scrollHeight - output.scrollTop - output.clientHeight) < 40;
             output.appendChild(line);
-            output.scrollTop = output.scrollHeight;
+            if (atBottom) {
+                output.scrollTop = output.scrollHeight;
+            }
         }
 
         function clearOutput() {
@@ -1568,130 +1547,41 @@
             }
         }
 
-    async function runCode() {
-        if (isRunning) return;
-        // Always derive runnable JS from workspace, never from JSON in the code textarea
-        const topBlocks = workspace.getTopBlocks(false);
-        if (!topBlocks.length) { return; }
-        let code = Blockly.JavaScript ? Blockly.JavaScript.workspaceToCode(workspace) : '';
-        if (!code.trim()) { return; }
-        isRunning = true;
-        try {
-            const needsIIFE = !/(async\s*function|\(async\s*\()/ .test(code);
-            const wrapped = needsIIFE ? `(async()=>{\n${code}\n})()` : code;
-            await executeCodeSafely(wrapped);
-        } catch (error) {
-            console.error('Blockly execution error:', error);
-        } finally {
-            isRunning = false;
-            const runBtn = document.getElementById('runBtn');
-            const stopBtn = document.getElementById('stopBtn');
-            if (runBtn && stopBtn) { runBtn.style.display='block'; stopBtn.style.display='none'; }
-        }
+    // --- Web Worker based execution (non-blocking UI) ---
+    let codeWorker = null;
+    let currentRunId = 0; // incremented each run/stop to invalidate stale worker messages
+    function stopWorker(){ if(codeWorker){ codeWorker.terminate(); codeWorker=null; } }
+    function workerBlobFrom(code){
+        const esc = s=>s.replace(/`/g,'\`');
+        const src = `self.window=self;\n`+
+`function __serialize(v){\n  if(v===null) return 'null';\n  const t=typeof v;\n  if(t==='string') return v;\n  if(t==='number' || t==='boolean' || t==='bigint') return String(v);\n  if(t==='undefined') return 'undefined';\n  if(t==='function') return v.name?('[Function '+v.name+']'):'[Function]';\n  try { if(v instanceof Error) return v.name+': '+v.message; } catch(_){}\n  try { return JSON.stringify(v); } catch(_) { return '[Object]'; }\n}\n`+
+`let __hOut=(m,t='log')=>postMessage({t:'out',msg:__serialize(m),type:t});\n`+
+`self.hynthera_output=(e)=>{ if(typeof e==='string') return __hOut(e,'log'); if(e&&typeof e==='object'){ return __hOut(e.message||__serialize(e),'log'); } return __hOut(String(e),'log'); };\n`+
+`self.console={\n  log:(...a)=>__hOut(a.map(__serialize).join(' '),'log'),\n  warn:(...a)=>__hOut(a.map(__serialize).join(' '),'warn'),\n  error:(...a)=>__hOut(a.map(__serialize).join(' '),'error')\n};\n`+
+`async function __main(){ try { ${code}\n } catch(e){ __hOut('Error: '+ (e&&e.message?e.message:e),'error'); } finally { postMessage({t:'done'}); } }\n__main();`;
+        return new Blob([src],{type:'application/javascript'});
     }
-
-        // Simplified loop transformation: inject await checkContinue() at start of each loop body
-        function transformLoopsToAsync(code){
-            // Inject cooperative yield for plain JS loops not already managed.
-            return code
-                .replace(/for\s*\([^)]*\)\s*\{/g, m=> /__ASYNC_LOOP__/.test(m) ? m : m + "\n    await checkContinue();")
-                .replace(/while\s*\([^)]*\)\s*\{/g, m=> /__ASYNC_LOOP__/.test(m) ? m : m + "\n    await checkContinue();");
-        }
-
-        async function executeCodeSafely(code) {
-            shouldStop = false; // Reset stop flag
-            
-            // Maximum execution time and frame rate settings
-            const MAX_EXECUTION_TIME = 10000; // 10 seconds max
-            const FRAME_DELAY = Math.floor(1000 / 60); // 60 FPS = ~16.67ms per frame
-            
-            // Transform loops to be async and non-blocking
-            let safeCode = transformLoopsToAsync(code);
-
-            // Preprocess: upgrade functions that use 'await' to async automatically
-            function fixAwaitInFunctions(src) {
-                try {
-                    // function name(...) { ... }
-                    src = src.replace(/function\s+([A-Za-z_$][\w$]*)\s*\(([^)]*)\)\s*\{([\s\S]*?)\}/g, (m, name, args, body) => {
-                        if (/\bawait\b/.test(body) && !/^\s*async\b/.test(m)) {
-                            return `async function ${name}(${args}){${body}}`;
-                        }
-                        return m;
-                    });
-                    // const/let/var fn = function(...) { ... }
-                    src = src.replace(/(const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*function\s*\(([^)]*)\)\s*\{([\s\S]*?)\}/g,
-                        (m, decl, name, args, body) => {
-                            if (/\bawait\b/.test(body) && !/async\s*function/.test(m)) {
-                                return `${decl} ${name} = async function(${args}){${body}}`;
-                            }
-                            return m;
-                        }
-                    );
-                    // const/let/var fn = (...) => { ... }
-                    src = src.replace(/(const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*\(([^)]*)\)\s*=>\s*\{([\s\S]*?)\}/g,
-                        (m, decl, name, args, body) => {
-                            if (/\bawait\b/.test(body) && !/^\s*async\s*\(/.test(m)) {
-                                return `${decl} ${name} = async (${args}) => {${body}}`;
-                            }
-                            return m;
-                        }
-                    );
-                } catch (_) {}
-                return src;
-            }
-            safeCode = fixAwaitInFunctions(safeCode);
-            
-            // Define checkContinue globally BEFORE code execution
-            let iterationCount = 0;
-            const maxIterations = 10000;
-            if(!window.__yield){ window.__yield = () => new Promise(r=>setTimeout(r,0)); }
-            window.checkContinue = async function() {
-                iterationCount++;
-                if (shouldStop) { throw new Error('Execution stopped by user'); }
-                if (iterationCount > maxIterations) { throw new Error('Maximum iterations exceeded - possible infinite loop detected'); }
-                await new Promise(resolve => setTimeout(resolve, ` + FRAME_DELAY + `));
-                return true;
-            };
-            
-            const executeWithTiming = `
-                (async function() {
-                    try { ${safeCode} } catch (e) { hynthera_output({message:'Error: ' + e.message, type:'error'}); throw e; }
-                })();
-            `;
-            
-            // Create execution timeout
-            const startTime = Date.now();
-            
-            // Set up execution timeout
-            const timeoutId = setTimeout(() => {
-                if (!shouldStop) {
-                    shouldStop = true;
-                    hynthera_output({message:'Execution timeout - code took longer than 10 seconds', type:'error'});
-                }
-            }, MAX_EXECUTION_TIME);
-
-            try {
-                // Execute the transformed code in a controlled environment
-                await eval(executeWithTiming);
-                
-            } catch (error) {
-                if (!shouldStop) {
-                    hynthera_output({message:'Execution error: ' + error.message, type:'error'});
-                }
-                console.error('Code execution error:', error);
-                
-            } finally {
-                // Clean up timeout
-                clearTimeout(timeoutId);
-                
-                // Clean up global helper function
-                if (window.checkContinue) {
-                    delete window.checkContinue;
-                }
-                
-                // silent success end
-            }
-        }
+    async function runCode(){
+        if(isRunning) return; const top=workspace.getTopBlocks(false); if(!top.length) return;
+        currentRunId++; // start a new logical run
+        const myRun = currentRunId;
+        let code = Blockly.JavaScript ? Blockly.JavaScript.workspaceToCode(workspace) : '';
+        if(!code.trim()) return;
+        if(!/(async\s*function|\(async\s*\()/ .test(code)) code = `(async()=>{\n${code}\n})()`;
+        isRunning = true; const runBtn=document.getElementById('runBtn'); const stopBtn=document.getElementById('stopBtn'); if(runBtn&&stopBtn){ runBtn.style.display='none'; stopBtn.style.display='block'; }
+        stopWorker();
+        const blob = workerBlobFrom(code);
+        codeWorker = new Worker(URL.createObjectURL(blob));
+        codeWorker.onmessage = (e)=>{ if(myRun!==currentRunId) return; const d=e.data; if(!d) return; if(d.t==='out'){ hynthera_output(d.msg); } else if(d.t==='done'){ finishRun(); } };
+        codeWorker.onerror = (e)=>{ if(myRun!==currentRunId) return; hynthera_output({message:'Worker error: '+e.message,type:'error'}); finishRun(); };
+    }
+    function finishRun(){ isRunning=false; const runBtn=document.getElementById('runBtn'); const stopBtn=document.getElementById('stopBtn'); if(runBtn&&stopBtn){ runBtn.style.display='block'; stopBtn.style.display='none'; } stopWorker(); }
+    function stopExecution(){
+        // Invalidate current run and terminate worker; ignore any late messages
+        currentRunId++;
+        finishRun();
+        hynthera_output('🛑 Execution stopped by user');
+    }
 
         // Auto-update code preview (display only, don't execute)
         workspace.addChangeListener(function(event) {
