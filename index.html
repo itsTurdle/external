@@ -152,11 +152,20 @@
 </head>
 <body>
     <div id="tabsBar" style="display:flex; gap:4px; overflow-x:hidden; padding:6px 6px 6px 6px; scrollbar-width:thin; background:#0d1117; border-bottom:1px solid #1e242b; position:relative; flex:0 0 auto;">
+        <div class="tabButton" data-tab="program" style="flex:0 0 auto; cursor:pointer; background:#21262d; color:#fff; font-size:14px; padding:4px 16px; border-radius:4px 4px 0 0; user-select:none; font-weight:600; margin-right:2px;">Program</div>
+        <div class="tabButton" data-tab="drawing" style="flex:0 0 auto; cursor:pointer; background:#21262d; color:#fff; font-size:14px; padding:4px 16px; border-radius:4px 4px 0 0; user-select:none; font-weight:600; margin-right:2px;">Drawing</div>
+        <div class="tabButton" data-tab="camera" style="flex:0 0 auto; cursor:pointer; background:#21262d; color:#fff; font-size:14px; padding:4px 16px; border-radius:4px 4px 0 0; user-select:none; font-weight:600; margin-right:2px;">Camera</div>
         <div id="addTabBtn" style="flex:0 0 auto; cursor:pointer; background:#238636; color:#fff; font-size:14px; padding:4px 12px; border-radius:4px; user-select:none; font-weight:600;">+</div>
     </div>
     <div class="main-container">
-        <div class="editor-section">
+        <div class="editor-section" id="programTab" style="display:block;">
             <div id="blocklyDiv" style="height:100%; width:100%;"></div>
+        </div>
+        <div class="editor-section" id="drawingTab" style="display:none;">
+            <div style="padding:24px; color:#00d4aa; font-size:18px;">Drawing blocks will appear here soon.<br>Use the block editor to send draw calls to the overlay.</div>
+        </div>
+        <div class="editor-section" id="cameraTab" style="display:none;">
+            <div style="padding:24px; color:#00d4aa; font-size:18px;">Camera blocks and controls coming soon.</div>
         </div>
         <div class="output-section">
                 <div id="versionBanner" style="background:#00d4aa; color:#000; padding:4px; border-radius:4px; margin-bottom:4px; font-size:10px; font-weight:bold; text-align:center;">
@@ -183,6 +192,23 @@
         </div>
     </div>
     <script>
+    // Tab switching logic
+    document.addEventListener('DOMContentLoaded', function() {
+        const tabButtons = document.querySelectorAll('.tabButton');
+        const programTab = document.getElementById('programTab');
+        const drawingTab = document.getElementById('drawingTab');
+        const cameraTab = document.getElementById('cameraTab');
+        function showTab(tab) {
+            programTab.style.display = (tab === 'program') ? 'block' : 'none';
+            drawingTab.style.display = (tab === 'drawing') ? 'block' : 'none';
+            cameraTab.style.display = (tab === 'camera') ? 'block' : 'none';
+            tabButtons.forEach(btn => btn.style.background = (btn.dataset.tab === tab) ? '#238636' : '#21262d');
+        }
+        tabButtons.forEach(btn => {
+            btn.addEventListener('click', () => showTab(btn.dataset.tab));
+        });
+        showTab('program');
+    });
     window.__APP_VERSION = '1.3.5';
         const vb = document.getElementById('versionBanner');
         if (vb) vb.textContent = '🎮 ROBLOX API v' + window.__APP_VERSION;
@@ -765,6 +791,17 @@
                             </block>
                         </value>
                     </block>
+                </category>
+                <!-- Added Drawing & Camera categories -->
+                <category name="🖌️ Drawing" colour="#ff6363">
+                    <block type="draw_line"></block>
+                    <block type="draw_rect"></block>
+                    <block type="draw_circle"></block>
+                    <block type="color_rgba"></block>
+                </category>
+                <category name="📷 Camera" colour="#3b82f6">
+                    <block type="world_to_screen"></block>
+                    <block type="is_zero_vec2"></block>
                 </category>
                 <category name="🔧 Logic" colour="#2f81f7">
                     <block type="controls_if"></block>
