@@ -840,6 +840,158 @@
             };
         }
 
+                // ================= Drawing & Camera Integration (ImGui Native Bridge) =================
+                (function(){
+                    // Draw call queue (screen space primitives)
+                    const drawQueue = [];
+                    window.__enqueueDraw = function(call){
+                        if(!call||typeof call!=='object') return;
+                        drawQueue.push(call);
+                    };
+                    function flushDrawQueue(){
+                        if(drawQueue.length===0) return;
+                        const calls = drawQueue.splice(0, drawQueue.length);
+                        // normalize color
+                        const payload = calls.map(c=>({
+                            type:c.type,
+                            filled:!!c.filled,
+                            r:(c.color&&c.color.r)|0,g:(c.color&&c.color.g)|0,b:(c.color&&c.color.b)|0,a:(c.color&&c.color.a)|0,
+                            x1:c.x1||0,y1:c.y1||0,x2:c.x2||0,y2:c.y2||0,
+                            x:c.x||0,y:c.y||0,w:c.w||0,h:c.h||0,r2:c.r||0
+                        }));
+                        try{ if(window.chrome && window.chrome.webview){
+                            window.chrome.webview.postMessage(JSON.stringify({function:'submitDrawCalls', id:Date.now(), params:{calls:payload}}));
+                        }}catch(_){/* ignore */}
+                    }
+                    setInterval(flushDrawQueue, 50); // 20fps flush
+
+                    // Backend world-to-screen
+                    window.__worldToScreen = async function(x,y,z){
+                        try { if(window.RobloxAPI){
+                            const res = await RobloxAPI.callBackend('worldToScreen',{x,y,z});
+                            if(res.success && res.point && typeof res.point.x==='number') return res.point;
+                        } } catch(_){ }
+                        return {x:0,y:0};
+                    };
+
+                    // Blockly Blocks -------------------------------------------------
+                    // Color
+                    if(!Blockly.Blocks['color_rgba']){
+                        Blockly.Blocks['color_rgba']={init:function(){
+                            this.appendDummyInput().appendField('color')
+                                .appendField('r').appendField(new Blockly.FieldNumber(255,0,255,1),'R')
+                                .appendField('g').appendField(new Blockly.FieldNumber(255,0,255,1),'G')
+                                .appendField('b').appendField(new Blockly.FieldNumber(255,0,255,1),'B')
+                                .appendField('a').appendField(new Blockly.FieldNumber(255,0,255,1),'A');
+                            this.setOutput(true,'Color');
+                            this.setColour('#ff6363');
+                            this.setTooltip('RGBA color 0-255');
+                        }};
+                        Blockly.JavaScript['color_rgba']=block=>{
+                            const r=block.getFieldValue('R');
+                            const g=block.getFieldValue('G');
+                            const b=block.getFieldValue('B');
+                            const a=block.getFieldValue('A');
+                            return [`{r:${r},g:${g},b:${b},a:${a}}`, Blockly.JavaScript.ORDER_ATOMIC];
+                        };
+                    }
+                    // world_to_screen
+                    if(!Blockly.Blocks['world_to_screen']){
+                        Blockly.Blocks['world_to_screen']={init:function(){
+                            this.appendValueInput('X').setCheck('Number').appendField('world→screen x');
+                            this.appendValueInput('Y').setCheck('Number').appendField('y');
+                            this.appendValueInput('Z').setCheck('Number').appendField('z');
+                            this.setOutput(true,'Vector2');
+                            this.setColour('#3b82f6');
+                            this.setTooltip('World to screen; returns {x:0,y:0} if invalid/off-screen');
+                        }};
+                        Blockly.JavaScript['world_to_screen']=block=>{
+                            const x=Blockly.JavaScript.valueToCode(block,'X',Blockly.JavaScript.ORDER_ATOMIC)||'0';
+                            const y=Blockly.JavaScript.valueToCode(block,'Y',Blockly.JavaScript.ORDER_ATOMIC)||'0';
+                            const z=Blockly.JavaScript.valueToCode(block,'Z',Blockly.JavaScript.ORDER_ATOMIC)||'0';
+                            return [`await (async()=>{ const p=await __worldToScreen(${x},${y},${z}); if(!p||typeof p.x!=='number'||typeof p.y!=='number'||(p.x===0&&p.y===0)) return {x:0,y:0}; return p; })()`, Blockly.JavaScript.ORDER_AWAIT];
+                        };
+                    }
+                    if(!Blockly.Blocks['is_zero_vec2']){
+                        Blockly.Blocks['is_zero_vec2']={init:function(){
+                            this.appendValueInput('V').setCheck('Vector2').appendField('is zero vec2');
+                            this.setOutput(true,'Boolean');
+                            this.setColour('#3b82f6');
+                        }};
+                        Blockly.JavaScript['is_zero_vec2']=block=>{
+                            const v=Blockly.JavaScript.valueToCode(block,'V',Blockly.JavaScript.ORDER_ATOMIC)||'({x:0,y:0})';
+                            return [`(v=>!v||typeof v.x!=='number'||typeof v.y!=='number'||(v.x===0&&v.y===0))(${v})`, Blockly.JavaScript.ORDER_FUNCTION_CALL];
+                        };
+                    }
+
+                    function genLine(){
+                        if(!Blockly.Blocks['draw_line']){
+                            Blockly.Blocks['draw_line']={init:function(){
+                                this.appendValueInput('X1').setCheck('Number').appendField('draw line x1');
+                                this.appendValueInput('Y1').setCheck('Number').appendField('y1');
+                                this.appendValueInput('X2').setCheck('Number').appendField('x2');
+                                this.appendValueInput('Y2').setCheck('Number').appendField('y2');
+                                this.appendValueInput('COLOR').setCheck('Color').appendField('color');
+                                this.setPreviousStatement(true,null); this.setNextStatement(true,null);
+                                this.setColour('#ff6363');
+                            }};
+                            Blockly.JavaScript['draw_line']=b=>{
+                                const x1=Blockly.JavaScript.valueToCode(b,'X1',Blockly.JavaScript.ORDER_ATOMIC)||'0';
+                                const y1=Blockly.JavaScript.valueToCode(b,'Y1',Blockly.JavaScript.ORDER_ATOMIC)||'0';
+                                const x2=Blockly.JavaScript.valueToCode(b,'X2',Blockly.JavaScript.ORDER_ATOMIC)||'0';
+                                const y2=Blockly.JavaScript.valueToCode(b,'Y2',Blockly.JavaScript.ORDER_ATOMIC)||'0';
+                                const c=Blockly.JavaScript.valueToCode(b,'COLOR',Blockly.JavaScript.ORDER_ATOMIC)||'{r:255,g:255,b:255,a:255}';
+                                return `;(p=>{if([p.x1,p.y1,p.x2,p.y2].some(v=>typeof v!=="number"||!isFinite(v)))return; window.__enqueueDraw({type:'line',x1:p.x1,y1:p.y1,x2:p.x2,y2:p.y2,color:p.c});})({x1:${x1},y1:${y1},x2:${x2},y2:${y2},c:${c}});\n`;
+                            };
+                        }
+                    }
+                    function genRect(){
+                        if(!Blockly.Blocks['draw_rect']){
+                            Blockly.Blocks['draw_rect']={init:function(){
+                                this.appendValueInput('X').setCheck('Number').appendField('draw rect x');
+                                this.appendValueInput('Y').setCheck('Number').appendField('y');
+                                this.appendValueInput('W').setCheck('Number').appendField('w');
+                                this.appendValueInput('H').setCheck('Number').appendField('h');
+                                this.appendValueInput('COLOR').setCheck('Color').appendField('color');
+                                this.appendValueInput('FILLED').setCheck('Boolean').appendField('filled');
+                                this.setPreviousStatement(true,null); this.setNextStatement(true,null);
+                                this.setColour('#ff6363');
+                            }};
+                            Blockly.JavaScript['draw_rect']=b=>{
+                                const x=Blockly.JavaScript.valueToCode(b,'X',Blockly.JavaScript.ORDER_ATOMIC)||'0';
+                                const y=Blockly.JavaScript.valueToCode(b,'Y',Blockly.JavaScript.ORDER_ATOMIC)||'0';
+                                const w=Blockly.JavaScript.valueToCode(b,'W',Blockly.JavaScript.ORDER_ATOMIC)||'0';
+                                const h=Blockly.JavaScript.valueToCode(b,'H',Blockly.JavaScript.ORDER_ATOMIC)||'0';
+                                const c=Blockly.JavaScript.valueToCode(b,'COLOR',Blockly.JavaScript.ORDER_ATOMIC)||'{r:255,g:255,b:255,a:255}';
+                                const f=Blockly.JavaScript.valueToCode(b,'FILLED',Blockly.JavaScript.ORDER_ATOMIC)||'false';
+                                return `;(p=>{if([p.x,p.y,p.w,p.h].some(v=>typeof v!=="number"||!isFinite(v)))return;if(p.w<=0||p.h<=0)return;window.__enqueueDraw({type:'rect',x:p.x,y:p.y,w:p.w,h:p.h,filled:!!p.f,color:p.c});})({x:${x},y:${y},w:${w},h:${h},f:${f},c:${c}});\n`;
+                            };
+                        }
+                    }
+                    function genCircle(){
+                        if(!Blockly.Blocks['draw_circle']){
+                            Blockly.Blocks['draw_circle']={init:function(){
+                                this.appendValueInput('X').setCheck('Number').appendField('draw circle x');
+                                this.appendValueInput('Y').setCheck('Number').appendField('y');
+                                this.appendValueInput('R').setCheck('Number').appendField('r');
+                                this.appendValueInput('COLOR').setCheck('Color').appendField('color');
+                                this.appendValueInput('FILLED').setCheck('Boolean').appendField('filled');
+                                this.setPreviousStatement(true,null); this.setNextStatement(true,null);
+                                this.setColour('#ff6363');
+                            }};
+                            Blockly.JavaScript['draw_circle']=b=>{
+                                const x=Blockly.JavaScript.valueToCode(b,'X',Blockly.JavaScript.ORDER_ATOMIC)||'0';
+                                const y=Blockly.JavaScript.valueToCode(b,'Y',Blockly.JavaScript.ORDER_ATOMIC)||'0';
+                                const r=Blockly.JavaScript.valueToCode(b,'R',Blockly.JavaScript.ORDER_ATOMIC)||'0';
+                                const c=Blockly.JavaScript.valueToCode(b,'COLOR',Blockly.JavaScript.ORDER_ATOMIC)||'{r:255,g:255,b:255,a:255}';
+                                const f=Blockly.JavaScript.valueToCode(b,'FILLED',Blockly.JavaScript.ORDER_ATOMIC)||'false';
+                                return `;(p=>{if([p.x,p.y,p.r].some(v=>typeof v!=="number"||!isFinite(v)))return;if(p.r<=0)return;window.__enqueueDraw({type:'circle',x:p.x,y:p.y,r:p.r,filled:!!p.f,color:p.c});})({x:${x},y:${y},r:${r},f:${f},c:${c}});\n`;
+                            };
+                        }
+                    }
+                    genLine(); genRect(); genCircle();
+                })();
+
         // Define Event Blocks BEFORE workspace creation
         Blockly.Blocks['when_start_clicked'] = {
             init: function() {
