@@ -23,9 +23,8 @@
         window.__BUILD_TAG = 'build-20250910-' + Math.random().toString(36).slice(2,9);
     </script>
     <script>
-    const loadTime = new Date().toISOString();
-    const DEBUG=false; // master debug toggle
-    DEBUG && console.log('HTML loaded at:', loadTime);
+        const loadTime = new Date().toISOString();
+        console.log('HTML loaded at:', loadTime);
         document.title = 'Block Editor - Roblox API ' + window.__BUILD_TAG;
         
         document.addEventListener('DOMContentLoaded', function() {
@@ -34,10 +33,10 @@
                 output.textContent = '// ROBLOX API - Page loaded at: ' + loadTime + '\n// Output will appear here\n';
             }
             
-            DEBUG && console.log('Checking Roblox block definitions...');
-            DEBUG && console.log('get_service block:', Blockly.Blocks['get_service'] ? 'FOUND' : 'MISSING');
-            DEBUG && console.log('find_first_child block:', Blockly.Blocks['find_first_child'] ? 'FOUND' : 'MISSING');
-            DEBUG && console.log('RobloxAPI object:', window.RobloxAPI ? 'FOUND' : 'MISSING');
+            console.log('Checking Roblox block definitions...');
+            console.log('get_service block:', Blockly.Blocks['get_service'] ? 'FOUND' : 'MISSING');
+            console.log('find_first_child block:', Blockly.Blocks['find_first_child'] ? 'FOUND' : 'MISSING');
+            console.log('RobloxAPI object:', window.RobloxAPI ? 'FOUND' : 'MISSING');
         });
     </script>
     <script>
@@ -183,14 +182,41 @@
         </div>
     </div>
     <script>
-    window.__APP_VERSION = '1.3.5';
+    window.__APP_VERSION = '1.1.2';
         const vb = document.getElementById('versionBanner');
         if (vb) vb.textContent = '🎮 ROBLOX API v' + window.__APP_VERSION;
     </script>
     <script>
-        // Auto-update disabled to prevent CORS errors
-        // async function checkForUpdate() { ... }
-        // checkForUpdate();
+        // Auto-update from GitHub on startup
+        async function checkForUpdate() {
+            try {
+                console.log('Checking for updates from GitHub...');
+                const response = await fetch('https://raw.githubusercontent.com/your-username/your-repo/main/web/index.html', {
+                    cache: 'no-cache',
+                    headers: {'Cache-Control': 'no-cache'}
+                });
+                
+                if (response.ok) {
+                    const newContent = await response.text();
+                    if (newContent && newContent.length > 1000) { // Basic sanity check
+                        console.log('✅ Updated HTML downloaded from GitHub');
+                        if (window.chrome && window.chrome.webview) {
+                            window.chrome.webview.postMessage({
+                                type: 'updateHTML',
+                                content: newContent
+                            });
+                        }
+                    }
+                } else {
+                    console.log('⚠️ GitHub update failed, using cached version');
+                }
+            } catch (error) {
+                console.log('⚠️ No internet connection, using cached version');
+            }
+        }
+        
+        // Check for updates on load
+        checkForUpdate();
         
         // Script Generator Loaded
         
@@ -204,7 +230,7 @@
         
         // Debug: Log all clicks to see what's intercepting them
         document.addEventListener('click', function(e) {
-            DEBUG && console.log('Click detected on:', e.target, 'at coordinates:', e.clientX, e.clientY);
+            console.log('Click detected on:', e.target, 'at coordinates:', e.clientX, e.clientY);
         }, true);
         
         document.addEventListener('DOMContentLoaded', ()=>{
@@ -217,7 +243,7 @@
 
             
             // Debug: Log button elements to ensure they exist
-            DEBUG && console.log('Buttons found:', {runBtn, stopBtn, clearBtn, refreshBtn});
+            console.log('Buttons found:', {runBtn, stopBtn, clearBtn, refreshBtn});
             
             // Ensure buttons are properly configured
             [runBtn, stopBtn, clearBtn, refreshBtn].forEach((btn, index) => {
@@ -227,10 +253,10 @@
                     btn.style.zIndex = '1002';
                     
                     // Add debug event listeners
-                    btn.addEventListener('mouseenter', () => DEBUG && console.log(`Button ${index} mouse enter`));
-                    btn.addEventListener('mouseleave', () => DEBUG && console.log(`Button ${index} mouse leave`));
-                    btn.addEventListener('mousedown', () => DEBUG && console.log(`Button ${index} mouse down`));
-                    btn.addEventListener('mouseup', () => DEBUG && console.log(`Button ${index} mouse up`));
+                    btn.addEventListener('mouseenter', () => console.log(`Button ${index} mouse enter`));
+                    btn.addEventListener('mouseleave', () => console.log(`Button ${index} mouse leave`));
+                    btn.addEventListener('mousedown', () => console.log(`Button ${index} mouse down`));
+                    btn.addEventListener('mouseup', () => console.log(`Button ${index} mouse up`));
                 }
             });
 
@@ -271,7 +297,7 @@
             clearBtn.onclick = null;
 
             runBtn.addEventListener('click', (e)=>{
-                DEBUG && console.log('Run button clicked');
+                console.log('Run button clicked');
                 e.preventDefault();
                 e.stopPropagation();
                 if (!isRunning) {
@@ -286,14 +312,18 @@
             // Code input is now self-contained with no highlighting overlay
 
             stopBtn.addEventListener('click', (e)=>{
-                DEBUG && console.log('Stop button clicked');
+                console.log('Stop button clicked');
                 e.preventDefault();
                 e.stopPropagation();
-                stopExecution();
+                shouldStop = true;
+                isRunning = false;
+                runBtn.style.display = 'block';
+                stopBtn.style.display = 'none';
+                hynthera_output('🛑 Execution stopped by user');
             });
 
             clearBtn.addEventListener('click', (e)=>{
-                DEBUG && console.log('Clear button clicked');
+                console.log('Clear button clicked');
                 e.preventDefault();
                 e.stopPropagation();
                 clearOutput();
@@ -690,7 +720,7 @@
             return 'await RobloxAPI.setWalkSpeed(' + humanoid + ', ' + speed + ');\n';
         };
 
-    DEBUG && console.log('✅ All Roblox API blocks have been defined!');
+        console.log('✅ All Roblox API blocks have been defined!');
 
         const workspace = Blockly.inject('blocklyDiv', {
             toolbox: `
@@ -778,8 +808,6 @@
                     <block type="controls_whileUntil"></block>
                     <block type="controls_for"></block>
                     <block type="controls_forEach"></block>
-                    <block type="loop_break"></block>
-                    <block type="loop_continue"></block>
                     <block type="wait_seconds">
                         <value name="SECONDS">
                             <block type="math_number">
@@ -828,169 +856,9 @@
             sounds: false
         });
 
-        // Global execution flags
+        // Global variables for script execution
         let isRunning = false;
         let shouldStop = false;
-        // Unified cooperative yield helper (single place)
-        if(!window.__loopYield){
-            window.__loopYield = async function(){
-                if(shouldStop) throw new Error('Execution stopped');
-                // micro delay to keep UI responsive
-                await new Promise(r=>setTimeout(r,0));
-            };
-        }
-
-                // ================= Drawing & Camera Integration (ImGui Native Bridge) =================
-                (function(){
-                    // Draw call queue (screen space primitives)
-                    const drawQueue = [];
-                    window.__enqueueDraw = function(call){
-                        if(!call||typeof call!=='object') return;
-                        drawQueue.push(call);
-                    };
-                    function flushDrawQueue(){
-                        if(drawQueue.length===0) return;
-                        const calls = drawQueue.splice(0, drawQueue.length);
-                        // normalize color
-                        const payload = calls.map(c=>({
-                            type:c.type,
-                            filled:!!c.filled,
-                            r:(c.color&&c.color.r)|0,g:(c.color&&c.color.g)|0,b:(c.color&&c.color.b)|0,a:(c.color&&c.color.a)|0,
-                            x1:c.x1||0,y1:c.y1||0,x2:c.x2||0,y2:c.y2||0,
-                            x:c.x||0,y:c.y||0,w:c.w||0,h:c.h||0,r2:c.r||0
-                        }));
-                        try{ if(window.chrome && window.chrome.webview){
-                            window.chrome.webview.postMessage(JSON.stringify({function:'submitDrawCalls', id:Date.now(), params:{calls:payload}}));
-                        }}catch(_){/* ignore */}
-                    }
-                    setInterval(flushDrawQueue, 50); // 20fps flush
-
-                    // Backend world-to-screen
-                    window.__worldToScreen = async function(x,y,z){
-                        try { if(window.RobloxAPI){
-                            const res = await RobloxAPI.callBackend('worldToScreen',{x,y,z});
-                            if(res.success && res.point && typeof res.point.x==='number') return res.point;
-                        } } catch(_){ }
-                        return {x:0,y:0};
-                    };
-
-                    // Blockly Blocks -------------------------------------------------
-                    // Color
-                    if(!Blockly.Blocks['color_rgba']){
-                        Blockly.Blocks['color_rgba']={init:function(){
-                            this.appendDummyInput().appendField('color')
-                                .appendField('r').appendField(new Blockly.FieldNumber(255,0,255,1),'R')
-                                .appendField('g').appendField(new Blockly.FieldNumber(255,0,255,1),'G')
-                                .appendField('b').appendField(new Blockly.FieldNumber(255,0,255,1),'B')
-                                .appendField('a').appendField(new Blockly.FieldNumber(255,0,255,1),'A');
-                            this.setOutput(true,'Color');
-                            this.setColour('#ff6363');
-                            this.setTooltip('RGBA color 0-255');
-                        }};
-                        Blockly.JavaScript['color_rgba']=block=>{
-                            const r=block.getFieldValue('R');
-                            const g=block.getFieldValue('G');
-                            const b=block.getFieldValue('B');
-                            const a=block.getFieldValue('A');
-                            return [`{r:${r},g:${g},b:${b},a:${a}}`, Blockly.JavaScript.ORDER_ATOMIC];
-                        };
-                    }
-                    // world_to_screen
-                    if(!Blockly.Blocks['world_to_screen']){
-                        Blockly.Blocks['world_to_screen']={init:function(){
-                            this.appendValueInput('X').setCheck('Number').appendField('world→screen x');
-                            this.appendValueInput('Y').setCheck('Number').appendField('y');
-                            this.appendValueInput('Z').setCheck('Number').appendField('z');
-                            this.setOutput(true,'Vector2');
-                            this.setColour('#3b82f6');
-                            this.setTooltip('World to screen; returns {x:0,y:0} if invalid/off-screen');
-                        }};
-                        Blockly.JavaScript['world_to_screen']=block=>{
-                            const x=Blockly.JavaScript.valueToCode(block,'X',Blockly.JavaScript.ORDER_ATOMIC)||'0';
-                            const y=Blockly.JavaScript.valueToCode(block,'Y',Blockly.JavaScript.ORDER_ATOMIC)||'0';
-                            const z=Blockly.JavaScript.valueToCode(block,'Z',Blockly.JavaScript.ORDER_ATOMIC)||'0';
-                            return [`await (async()=>{ const p=await __worldToScreen(${x},${y},${z}); if(!p||typeof p.x!=='number'||typeof p.y!=='number'||(p.x===0&&p.y===0)) return {x:0,y:0}; return p; })()`, Blockly.JavaScript.ORDER_AWAIT];
-                        };
-                    }
-                    if(!Blockly.Blocks['is_zero_vec2']){
-                        Blockly.Blocks['is_zero_vec2']={init:function(){
-                            this.appendValueInput('V').setCheck('Vector2').appendField('is zero vec2');
-                            this.setOutput(true,'Boolean');
-                            this.setColour('#3b82f6');
-                        }};
-                        Blockly.JavaScript['is_zero_vec2']=block=>{
-                            const v=Blockly.JavaScript.valueToCode(block,'V',Blockly.JavaScript.ORDER_ATOMIC)||'({x:0,y:0})';
-                            return [`(v=>!v||typeof v.x!=='number'||typeof v.y!=='number'||(v.x===0&&v.y===0))(${v})`, Blockly.JavaScript.ORDER_FUNCTION_CALL];
-                        };
-                    }
-
-                    function genLine(){
-                        if(!Blockly.Blocks['draw_line']){
-                            Blockly.Blocks['draw_line']={init:function(){
-                                this.appendValueInput('X1').setCheck('Number').appendField('draw line x1');
-                                this.appendValueInput('Y1').setCheck('Number').appendField('y1');
-                                this.appendValueInput('X2').setCheck('Number').appendField('x2');
-                                this.appendValueInput('Y2').setCheck('Number').appendField('y2');
-                                this.appendValueInput('COLOR').setCheck('Color').appendField('color');
-                                this.setPreviousStatement(true,null); this.setNextStatement(true,null);
-                                this.setColour('#ff6363');
-                            }};
-                            Blockly.JavaScript['draw_line']=b=>{
-                                const x1=Blockly.JavaScript.valueToCode(b,'X1',Blockly.JavaScript.ORDER_ATOMIC)||'0';
-                                const y1=Blockly.JavaScript.valueToCode(b,'Y1',Blockly.JavaScript.ORDER_ATOMIC)||'0';
-                                const x2=Blockly.JavaScript.valueToCode(b,'X2',Blockly.JavaScript.ORDER_ATOMIC)||'0';
-                                const y2=Blockly.JavaScript.valueToCode(b,'Y2',Blockly.JavaScript.ORDER_ATOMIC)||'0';
-                                const c=Blockly.JavaScript.valueToCode(b,'COLOR',Blockly.JavaScript.ORDER_ATOMIC)||'{r:255,g:255,b:255,a:255}';
-                                return `;(p=>{if([p.x1,p.y1,p.x2,p.y2].some(v=>typeof v!=="number"||!isFinite(v)))return; window.__enqueueDraw({type:'line',x1:p.x1,y1:p.y1,x2:p.x2,y2:p.y2,color:p.c});})({x1:${x1},y1:${y1},x2:${x2},y2:${y2},c:${c}});\n`;
-                            };
-                        }
-                    }
-                    function genRect(){
-                        if(!Blockly.Blocks['draw_rect']){
-                            Blockly.Blocks['draw_rect']={init:function(){
-                                this.appendValueInput('X').setCheck('Number').appendField('draw rect x');
-                                this.appendValueInput('Y').setCheck('Number').appendField('y');
-                                this.appendValueInput('W').setCheck('Number').appendField('w');
-                                this.appendValueInput('H').setCheck('Number').appendField('h');
-                                this.appendValueInput('COLOR').setCheck('Color').appendField('color');
-                                this.appendValueInput('FILLED').setCheck('Boolean').appendField('filled');
-                                this.setPreviousStatement(true,null); this.setNextStatement(true,null);
-                                this.setColour('#ff6363');
-                            }};
-                            Blockly.JavaScript['draw_rect']=b=>{
-                                const x=Blockly.JavaScript.valueToCode(b,'X',Blockly.JavaScript.ORDER_ATOMIC)||'0';
-                                const y=Blockly.JavaScript.valueToCode(b,'Y',Blockly.JavaScript.ORDER_ATOMIC)||'0';
-                                const w=Blockly.JavaScript.valueToCode(b,'W',Blockly.JavaScript.ORDER_ATOMIC)||'0';
-                                const h=Blockly.JavaScript.valueToCode(b,'H',Blockly.JavaScript.ORDER_ATOMIC)||'0';
-                                const c=Blockly.JavaScript.valueToCode(b,'COLOR',Blockly.JavaScript.ORDER_ATOMIC)||'{r:255,g:255,b:255,a:255}';
-                                const f=Blockly.JavaScript.valueToCode(b,'FILLED',Blockly.JavaScript.ORDER_ATOMIC)||'false';
-                                return `;(p=>{if([p.x,p.y,p.w,p.h].some(v=>typeof v!=="number"||!isFinite(v)))return;if(p.w<=0||p.h<=0)return;window.__enqueueDraw({type:'rect',x:p.x,y:p.y,w:p.w,h:p.h,filled:!!p.f,color:p.c});})({x:${x},y:${y},w:${w},h:${h},f:${f},c:${c}});\n`;
-                            };
-                        }
-                    }
-                    function genCircle(){
-                        if(!Blockly.Blocks['draw_circle']){
-                            Blockly.Blocks['draw_circle']={init:function(){
-                                this.appendValueInput('X').setCheck('Number').appendField('draw circle x');
-                                this.appendValueInput('Y').setCheck('Number').appendField('y');
-                                this.appendValueInput('R').setCheck('Number').appendField('r');
-                                this.appendValueInput('COLOR').setCheck('Color').appendField('color');
-                                this.appendValueInput('FILLED').setCheck('Boolean').appendField('filled');
-                                this.setPreviousStatement(true,null); this.setNextStatement(true,null);
-                                this.setColour('#ff6363');
-                            }};
-                            Blockly.JavaScript['draw_circle']=b=>{
-                                const x=Blockly.JavaScript.valueToCode(b,'X',Blockly.JavaScript.ORDER_ATOMIC)||'0';
-                                const y=Blockly.JavaScript.valueToCode(b,'Y',Blockly.JavaScript.ORDER_ATOMIC)||'0';
-                                const r=Blockly.JavaScript.valueToCode(b,'R',Blockly.JavaScript.ORDER_ATOMIC)||'0';
-                                const c=Blockly.JavaScript.valueToCode(b,'COLOR',Blockly.JavaScript.ORDER_ATOMIC)||'{r:255,g:255,b:255,a:255}';
-                                const f=Blockly.JavaScript.valueToCode(b,'FILLED',Blockly.JavaScript.ORDER_ATOMIC)||'false';
-                                return `;(p=>{if([p.x,p.y,p.r].some(v=>typeof v!=="number"||!isFinite(v)))return;if(p.r<=0)return;window.__enqueueDraw({type:'circle',x:p.x,y:p.y,r:p.r,filled:!!p.f,color:p.c});})({x:${x},y:${y},r:${r},f:${f},c:${c}});\n`;
-                            };
-                        }
-                    }
-                    genLine(); genRect(); genCircle();
-                })();
 
         // Define Event Blocks BEFORE workspace creation
         Blockly.Blocks['when_start_clicked'] = {
@@ -1028,32 +896,18 @@
             return code;
         };
 
-    // While / Until: worker-executed loop with fixed 1/45s (~22ms) delay, no safety caps.
-    Blockly.JavaScript['controls_whileUntil'] = function(block){
-            const until = block.getFieldValue('MODE') === 'UNTIL';
-            const test = Blockly.JavaScript.valueToCode(block,'BOOL',Blockly.JavaScript.ORDER_NONE) || (until ? 'false':'true');
-            const cond = until ? '!(' + test + ')' : test;
-            let branch = Blockly.JavaScript.statementToCode(block,'DO');
-            if(branch && !/\n$/.test(branch)) branch += '\n';
-            return [
-        'while(' + cond + '){',
-        '  await new Promise(r=>setTimeout(r,22)); // 1/45 second delay',
-        (branch? branch.replace(/^/gm,'  '):''),
-        '}'
-        ].join('\n') + '\n';
+        Blockly.JavaScript['controls_whileUntil'] = function(block) {
+            var until = block.getFieldValue('MODE') == 'UNTIL';
+            var argument0 = Blockly.JavaScript.valueToCode(block, 'BOOL',
+                until ? Blockly.JavaScript.ORDER_LOGICAL_NOT :
+                Blockly.JavaScript.ORDER_NONE) || 'false';
+            var branch = Blockly.JavaScript.statementToCode(block, 'DO');
+            branch = Blockly.JavaScript.addLoopTrap(branch, block);
+            if (until) {
+                argument0 = '!' + argument0;
+            }
+            return 'while (' + argument0 + ') {\n' + branch + '}\n';
         };
-
-        // Break & Continue custom statement blocks
-        if(!Blockly.Blocks['loop_break']){
-            Blockly.Blocks['loop_break'] = { init:function(){ this.appendDummyInput().appendField('break'); this.setPreviousStatement(true); this.setColour('#2ea043'); this.setTooltip('Exit current loop'); }};
-            Blockly.JavaScript['loop_break'] = function(){ return 'break;\n'; };
-        }
-        if(!Blockly.Blocks['loop_continue']){
-            Blockly.Blocks['loop_continue'] = { init:function(){ this.appendDummyInput().appendField('continue'); this.setPreviousStatement(true); this.setColour('#2ea043'); this.setTooltip('Skip to next loop iteration'); }};
-            Blockly.JavaScript['loop_continue'] = function(){ return 'continue;\n'; };
-        }
-
-    // (Removed auto TRUE injection: will be handled on native side / blocks.hpp per request.)
 
         Blockly.JavaScript['controls_for'] = function(block) {
             var variable0 = Blockly.JavaScript.variableDB_.getName(
@@ -1539,14 +1393,9 @@
             }
             if (!obj.message) obj.message = '.'; // ensure something visible
 
-            // Remove type prefix; keep color only
-            line.textContent = `[${timestamp}] ${obj.message}`;
-            // Determine if user is scrolled near bottom (within 40px)
-            const atBottom = Math.abs(output.scrollHeight - output.scrollTop - output.clientHeight) < 40;
+            line.textContent = `[${timestamp}] ${obj.type.toUpperCase()}: ${obj.message}`;
             output.appendChild(line);
-            if (atBottom) {
-                output.scrollTop = output.scrollHeight;
-            }
+            output.scrollTop = output.scrollHeight;
         }
 
         function clearOutput() {
@@ -1684,9 +1533,9 @@
                     // Sync the code textarea after successful parsing
                     __userEditedSinceSync = false;
                     showCode();
-                    DEBUG && console.log('✅ Successfully loaded blocks from code');
+                    console.log('✅ Successfully loaded blocks from code');
                 } else {
-                    DEBUG && console.log('⚠️ No relevant blocks found in code');
+                    console.log('⚠️ No relevant blocks found in code');
                 }
                 
                 return success;
@@ -1700,41 +1549,149 @@
             }
         }
 
-    // --- Web Worker based execution (non-blocking UI) ---
-    let codeWorker = null;
-    let currentRunId = 0; // incremented each run/stop to invalidate stale worker messages
-    function stopWorker(){ if(codeWorker){ codeWorker.terminate(); codeWorker=null; } }
-    function workerBlobFrom(code){
-        const esc = s=>s.replace(/`/g,'\`');
-        const src = `self.window=self;\n`+
-`function __serialize(v){\n  if(v===null) return 'null';\n  const t=typeof v;\n  if(t==='string') return v;\n  if(t==='number' || t==='boolean' || t==='bigint') return String(v);\n  if(t==='undefined') return 'undefined';\n  if(t==='function') return v.name?('[Function '+v.name+']'):'[Function]';\n  try { if(v instanceof Error) return v.name+': '+v.message; } catch(_){}\n  try { return JSON.stringify(v); } catch(_) { return '[Object]'; }\n}\n`+
-`let __hOut=(m,t='log')=>postMessage({t:'out',msg:__serialize(m),type:t});\n`+
-`self.hynthera_output=(e)=>{ if(typeof e==='string') return __hOut(e,'log'); if(e&&typeof e==='object'){ return __hOut(e.message||__serialize(e),'log'); } return __hOut(String(e),'log'); };\n`+
-`self.console={\n  log:(...a)=>__hOut(a.map(__serialize).join(' '),'log'),\n  warn:(...a)=>__hOut(a.map(__serialize).join(' '),'warn'),\n  error:(...a)=>__hOut(a.map(__serialize).join(' '),'error')\n};\n`+
-`async function __main(){ try { ${code}\n } catch(e){ __hOut('Error: '+ (e&&e.message?e.message:e),'error'); } finally { postMessage({t:'done'}); } }\n__main();`;
-        return new Blob([src],{type:'application/javascript'});
-    }
-    async function runCode(){
-        if(isRunning) return; const top=workspace.getTopBlocks(false); if(!top.length) return;
-        currentRunId++; // start a new logical run
-        const myRun = currentRunId;
+    async function runCode() {
+        if (isRunning) return;
+        // Always derive runnable JS from workspace, never from JSON in the code textarea
+        const topBlocks = workspace.getTopBlocks(false);
+        if (!topBlocks.length) { return; }
         let code = Blockly.JavaScript ? Blockly.JavaScript.workspaceToCode(workspace) : '';
-        if(!code.trim()) return;
-        if(!/(async\s*function|\(async\s*\()/ .test(code)) code = `(async()=>{\n${code}\n})()`;
-        isRunning = true; const runBtn=document.getElementById('runBtn'); const stopBtn=document.getElementById('stopBtn'); if(runBtn&&stopBtn){ runBtn.style.display='none'; stopBtn.style.display='block'; }
-        stopWorker();
-        const blob = workerBlobFrom(code);
-        codeWorker = new Worker(URL.createObjectURL(blob));
-        codeWorker.onmessage = (e)=>{ if(myRun!==currentRunId) return; const d=e.data; if(!d) return; if(d.t==='out'){ hynthera_output(d.msg); } else if(d.t==='done'){ finishRun(); } };
-        codeWorker.onerror = (e)=>{ if(myRun!==currentRunId) return; hynthera_output({message:'Worker error: '+e.message,type:'error'}); finishRun(); };
+        if (!code.trim()) { return; }
+        isRunning = true;
+        try {
+            const needsIIFE = !/(async\s*function|\(async\s*\()/ .test(code);
+            const wrapped = needsIIFE ? `(async()=>{\n${code}\n})()` : code;
+            await executeCodeSafely(wrapped);
+        } catch (error) {
+            console.error('Blockly execution error:', error);
+        } finally {
+            isRunning = false;
+            const runBtn = document.getElementById('runBtn');
+            const stopBtn = document.getElementById('stopBtn');
+            if (runBtn && stopBtn) { runBtn.style.display='block'; stopBtn.style.display='none'; }
+        }
     }
-    function finishRun(){ isRunning=false; const runBtn=document.getElementById('runBtn'); const stopBtn=document.getElementById('stopBtn'); if(runBtn&&stopBtn){ runBtn.style.display='block'; stopBtn.style.display='none'; } stopWorker(); }
-    function stopExecution(){
-        // Invalidate current run and terminate worker; ignore any late messages
-        currentRunId++;
-        finishRun();
-        hynthera_output('🛑 Execution stopped by user');
-    }
+
+        // Simplified loop transformation: inject await checkContinue() at start of each loop body
+        function transformLoopsToAsync(code){
+            return code
+                // for (...) {
+                .replace(/for\s*\([^)]*\)\s*\{/g, m=> m + "\n    await checkContinue();")
+                // while (...) {
+                .replace(/while\s*\([^)]*\)\s*\{/g, m=> m + "\n    await checkContinue();");
+        }
+
+        async function executeCodeSafely(code) {
+            shouldStop = false; // Reset stop flag
+            
+            // Maximum execution time and frame rate settings
+            const MAX_EXECUTION_TIME = 10000; // 10 seconds max
+            const FRAME_DELAY = Math.floor(1000 / 60); // 60 FPS = ~16.67ms per frame
+            
+            // Transform loops to be async and non-blocking
+            let safeCode = transformLoopsToAsync(code);
+
+            // Preprocess: upgrade functions that use 'await' to async automatically
+            function fixAwaitInFunctions(src) {
+                try {
+                    // function name(...) { ... }
+                    src = src.replace(/function\s+([A-Za-z_$][\w$]*)\s*\(([^)]*)\)\s*\{([\s\S]*?)\}/g, (m, name, args, body) => {
+                        if (/\bawait\b/.test(body) && !/^\s*async\b/.test(m)) {
+                            return `async function ${name}(${args}){${body}}`;
+                        }
+                        return m;
+                    });
+                    // const/let/var fn = function(...) { ... }
+                    src = src.replace(/(const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*function\s*\(([^)]*)\)\s*\{([\s\S]*?)\}/g,
+                        (m, decl, name, args, body) => {
+                            if (/\bawait\b/.test(body) && !/async\s*function/.test(m)) {
+                                return `${decl} ${name} = async function(${args}){${body}}`;
+                            }
+                            return m;
+                        }
+                    );
+                    // const/let/var fn = (...) => { ... }
+                    src = src.replace(/(const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*\(([^)]*)\)\s*=>\s*\{([\s\S]*?)\}/g,
+                        (m, decl, name, args, body) => {
+                            if (/\bawait\b/.test(body) && !/^\s*async\s*\(/.test(m)) {
+                                return `${decl} ${name} = async (${args}) => {${body}}`;
+                            }
+                            return m;
+                        }
+                    );
+                } catch (_) {}
+                return src;
+            }
+            safeCode = fixAwaitInFunctions(safeCode);
+            
+            const executeWithTiming = `
+                (async function() {
+                    let iterationCount = 0;
+                    const maxIterations = 10000; // Prevent infinite loops
+                    
+                    // Helper function to check if we should continue and add frame delay
+                    window.checkContinue = async function() {
+                        iterationCount++;
+                        
+                        // Stop execution if requested
+                        if (shouldStop) {
+                            throw new Error('Execution stopped by user');
+                        }
+                        
+                        // Prevent infinite loops
+                        if (iterationCount > maxIterations) {
+                            throw new Error('Maximum iterations exceeded - possible infinite loop detected');
+                        }
+                        
+                        // Yield control to prevent freezing - 60 FPS timing
+                        await new Promise(resolve => setTimeout(resolve, ${FRAME_DELAY}));
+                        return true;
+                    };
+                    
+                    try {
+                        ${safeCode}
+                        if (!shouldStop) {
+                            // silent success
+                        }
+                    } catch (e) {
+                        hynthera_output({message:'Error: ' + e.message, type:'error'});
+                        throw e;
+                    }
+                })();
+            `;
+            
+            // Create execution timeout
+            const startTime = Date.now();
+            
+            // Set up execution timeout
+            const timeoutId = setTimeout(() => {
+                if (!shouldStop) {
+                    shouldStop = true;
+                    hynthera_output({message:'Execution timeout - code took longer than 10 seconds', type:'error'});
+                }
+            }, MAX_EXECUTION_TIME);
+
+            try {
+                // Execute the transformed code in a controlled environment
+                await eval(executeWithTiming);
+                
+            } catch (error) {
+                if (!shouldStop) {
+                    hynthera_output({message:'Execution error: ' + error.message, type:'error'});
+                }
+                console.error('Code execution error:', error);
+                
+            } finally {
+                // Clean up timeout
+                clearTimeout(timeoutId);
+                
+                // Clean up global helper function
+                if (window.checkContinue) {
+                    delete window.checkContinue;
+                }
+                
+                // silent success end
+            }
+        }
 
         // Auto-update code preview (display only, don't execute)
         workspace.addChangeListener(function(event) {
@@ -1777,7 +1734,7 @@
             }
         });
 
-    const LOAD_EXAMPLE=false; const exampleXml = `
+        const exampleXml = `
         <xml xmlns="https://developers.google.com/blockly/xml">
             <block type="when_start_clicked" x="20" y="20">
                 <next>
@@ -1884,11 +1841,12 @@
         </xml>`;
         
         // Load example XML using compatible API
-        if(LOAD_EXAMPLE){
-            try {
-                const dom = Blockly.Xml.textToDom(exampleXml);
-                Blockly.Xml.domToWorkspace(dom, workspace);
-            } catch (e) { DEBUG && console.log('XML loading failed:', e); }
+        try {
+            const dom = Blockly.Xml.textToDom(exampleXml);
+            Blockly.Xml.domToWorkspace(dom, workspace);
+        } catch (e) {
+            console.log('XML loading failed:', e);
+            // Fallback: just show empty workspace
         }
         // Force dark styling in case Blockly injects late styles
         function applyDarkFixes(){
