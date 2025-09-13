@@ -23,8 +23,9 @@
         window.__BUILD_TAG = 'build-20250910-' + Math.random().toString(36).slice(2,9);
     </script>
     <script>
-        const loadTime = new Date().toISOString();
-        console.log('HTML loaded at:', loadTime);
+    const loadTime = new Date().toISOString();
+    const DEBUG=false; // master debug toggle
+    DEBUG && console.log('HTML loaded at:', loadTime);
         document.title = 'Block Editor - Roblox API ' + window.__BUILD_TAG;
         
         document.addEventListener('DOMContentLoaded', function() {
@@ -33,10 +34,10 @@
                 output.textContent = '// ROBLOX API - Page loaded at: ' + loadTime + '\n// Output will appear here\n';
             }
             
-            console.log('Checking Roblox block definitions...');
-            console.log('get_service block:', Blockly.Blocks['get_service'] ? 'FOUND' : 'MISSING');
-            console.log('find_first_child block:', Blockly.Blocks['find_first_child'] ? 'FOUND' : 'MISSING');
-            console.log('RobloxAPI object:', window.RobloxAPI ? 'FOUND' : 'MISSING');
+            DEBUG && console.log('Checking Roblox block definitions...');
+            DEBUG && console.log('get_service block:', Blockly.Blocks['get_service'] ? 'FOUND' : 'MISSING');
+            DEBUG && console.log('find_first_child block:', Blockly.Blocks['find_first_child'] ? 'FOUND' : 'MISSING');
+            DEBUG && console.log('RobloxAPI object:', window.RobloxAPI ? 'FOUND' : 'MISSING');
         });
     </script>
     <script>
@@ -203,7 +204,7 @@
         
         // Debug: Log all clicks to see what's intercepting them
         document.addEventListener('click', function(e) {
-            console.log('Click detected on:', e.target, 'at coordinates:', e.clientX, e.clientY);
+            DEBUG && console.log('Click detected on:', e.target, 'at coordinates:', e.clientX, e.clientY);
         }, true);
         
         document.addEventListener('DOMContentLoaded', ()=>{
@@ -216,7 +217,7 @@
 
             
             // Debug: Log button elements to ensure they exist
-            console.log('Buttons found:', {runBtn, stopBtn, clearBtn, refreshBtn});
+            DEBUG && console.log('Buttons found:', {runBtn, stopBtn, clearBtn, refreshBtn});
             
             // Ensure buttons are properly configured
             [runBtn, stopBtn, clearBtn, refreshBtn].forEach((btn, index) => {
@@ -226,10 +227,10 @@
                     btn.style.zIndex = '1002';
                     
                     // Add debug event listeners
-                    btn.addEventListener('mouseenter', () => console.log(`Button ${index} mouse enter`));
-                    btn.addEventListener('mouseleave', () => console.log(`Button ${index} mouse leave`));
-                    btn.addEventListener('mousedown', () => console.log(`Button ${index} mouse down`));
-                    btn.addEventListener('mouseup', () => console.log(`Button ${index} mouse up`));
+                    btn.addEventListener('mouseenter', () => DEBUG && console.log(`Button ${index} mouse enter`));
+                    btn.addEventListener('mouseleave', () => DEBUG && console.log(`Button ${index} mouse leave`));
+                    btn.addEventListener('mousedown', () => DEBUG && console.log(`Button ${index} mouse down`));
+                    btn.addEventListener('mouseup', () => DEBUG && console.log(`Button ${index} mouse up`));
                 }
             });
 
@@ -270,7 +271,7 @@
             clearBtn.onclick = null;
 
             runBtn.addEventListener('click', (e)=>{
-                console.log('Run button clicked');
+                DEBUG && console.log('Run button clicked');
                 e.preventDefault();
                 e.stopPropagation();
                 if (!isRunning) {
@@ -285,14 +286,14 @@
             // Code input is now self-contained with no highlighting overlay
 
             stopBtn.addEventListener('click', (e)=>{
-                console.log('Stop button clicked');
+                DEBUG && console.log('Stop button clicked');
                 e.preventDefault();
                 e.stopPropagation();
                 stopExecution();
             });
 
             clearBtn.addEventListener('click', (e)=>{
-                console.log('Clear button clicked');
+                DEBUG && console.log('Clear button clicked');
                 e.preventDefault();
                 e.stopPropagation();
                 clearOutput();
@@ -689,7 +690,7 @@
             return 'await RobloxAPI.setWalkSpeed(' + humanoid + ', ' + speed + ');\n';
         };
 
-        console.log('✅ All Roblox API blocks have been defined!');
+    DEBUG && console.log('✅ All Roblox API blocks have been defined!');
 
         const workspace = Blockly.inject('blocklyDiv', {
             toolbox: `
@@ -1531,9 +1532,9 @@
                     // Sync the code textarea after successful parsing
                     __userEditedSinceSync = false;
                     showCode();
-                    console.log('✅ Successfully loaded blocks from code');
+                    DEBUG && console.log('✅ Successfully loaded blocks from code');
                 } else {
-                    console.log('⚠️ No relevant blocks found in code');
+                    DEBUG && console.log('⚠️ No relevant blocks found in code');
                 }
                 
                 return success;
@@ -1624,7 +1625,7 @@
             }
         });
 
-        const exampleXml = `
+    const LOAD_EXAMPLE=false; const exampleXml = `
         <xml xmlns="https://developers.google.com/blockly/xml">
             <block type="when_start_clicked" x="20" y="20">
                 <next>
@@ -1731,12 +1732,11 @@
         </xml>`;
         
         // Load example XML using compatible API
-        try {
-            const dom = Blockly.Xml.textToDom(exampleXml);
-            Blockly.Xml.domToWorkspace(dom, workspace);
-        } catch (e) {
-            console.log('XML loading failed:', e);
-            // Fallback: just show empty workspace
+        if(LOAD_EXAMPLE){
+            try {
+                const dom = Blockly.Xml.textToDom(exampleXml);
+                Blockly.Xml.domToWorkspace(dom, workspace);
+            } catch (e) { DEBUG && console.log('XML loading failed:', e); }
         }
         // Force dark styling in case Blockly injects late styles
         function applyDarkFixes(){
