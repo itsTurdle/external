@@ -317,6 +317,7 @@
                 e.stopPropagation();
                 shouldStop = true;
                 isRunning = false;
+                try { if (loopWorker) { loopWorker.postMessage({ type:'stop' }); } } catch(_){}
                 runBtn.style.display = 'block';
                 stopBtn.style.display = 'none';
                 hynthera_output('🛑 Execution stopped by user');
@@ -859,6 +860,8 @@
         // Global variables for script execution
         let isRunning = false;
         let shouldStop = false;
+    let loopWorker = null; // Web Worker for high-FPS loop execution
+    let __ROBLOX_DEBUG = true; // Enable verbose Roblox API call logging by default (user can set to false in console)
 
         // Define Event Blocks BEFORE workspace creation
         Blockly.Blocks['when_start_clicked'] = {
@@ -1098,11 +1101,22 @@
                         params: params
                     });
 
+                    if (window.__ROBLOX_DEBUG) {
+                        try { hynthera_output({ message: `➡️ ${functionName}(${Object.keys(params).map(k=>k+':' + JSON.stringify(params[k])).join(', ')})`, type: 'info'}); } catch(_) {}
+                    }
+
                     const handleResponse = (event) => {
                         try {
                             const response = JSON.parse(event.data);
                             if (response.id === messageId) {
                                 window.removeEventListener('message', handleResponse);
+                                if (window.__ROBLOX_DEBUG) {
+                                    if (response.success) {
+                                        hynthera_output({ message: `✅ ${functionName} success`, type: 'info'});
+                                    } else {
+                                        hynthera_output({ message: `❌ ${functionName} failed: ${response.error || 'unknown error'}`, type: 'error'});
+                                    }
+                                }
                                 resolve(response);
                             }
                         } catch (e) {
@@ -1550,26 +1564,82 @@
         }
 
     async function runCode() {
-        if (isRunning) return;
-        // Always derive runnable JS from workspace, never from JSON in the code textarea
-        const topBlocks = workspace.getTopBlocks(false);
-        if (!topBlocks.length) { return; }
-        let code = Blockly.JavaScript ? Blockly.JavaScript.workspaceToCode(workspace) : '';
-        if (!code.trim()) { return; }
-        isRunning = true;
-        try {
-            const needsIIFE = !/(async\s*function|\(async\s*\()/ .test(code);
-            const wrapped = needsIIFE ? `(async()=>{\n${code}\n})()` : code;
-            await executeCodeSafely(wrapped);
-        } catch (error) {
-            console.error('Blockly execution error:', error);
-        } finally {
-            isRunning = false;
-            const runBtn = document.getElementById('runBtn');
-            const stopBtn = document.getElementById('stopBtn');
-            if (runBtn && stopBtn) { runBtn.style.display='block'; stopBtn.style.display='none'; }
+            // High-level execution strategy:
+            // 1. Generate JS from blocks.
+            // 2. If code contains loops (while/for) we prefer running inside a dedicated Web Worker (loop_worker.js)
+            //    to achieve ~120 FPS yielding without blocking UI and still proxy RobloxAPI calls back to main thread.
+            // 3. The worker injects await __checkContinue(); into loops and enforces iteration / time caps.
+            // 4. If worker creation fails (e.g., CSP or environment limitation), fallback to inline execution with dynamic FPS.
+            if (isRunning) return;
+            const topBlocks = workspace.getTopBlocks(false);
+            if (!topBlocks.length) { return; }
+            let code = Blockly.JavaScript ? Blockly.JavaScript.workspaceToCode(workspace) : '';
+            if (!code.trim()) { return; }
+
+            // Decide whether to offload to worker (contains while/for loops or explicit request)
+            const hasLoop = /(while\s*\(|for\s*\()/i.test(code);
+            const canUseWorker = (typeof Worker !== 'undefined');
+            if (hasLoop && canUseWorker) {
+                // Start / re-use worker
+                if (!loopWorker) {
+                    try {
+                        loopWorker = new Worker('loop_worker.js');
+                        loopWorker.onmessage = async (e) => {
+                            const msg = e.data || {};
+                            if (msg.type === 'log') {
+                                hynthera_output(msg.entry);
+                            } else if (msg.type === 'finished') {
+                                isRunning = false; shouldStop = false;
+                                const runBtn = document.getElementById('runBtn');
+                                const stopBtn = document.getElementById('stopBtn');
+                                if (runBtn && stopBtn) { runBtn.style.display='block'; stopBtn.style.display='none'; }
+                            } else if (msg.type === 'backendCall') {
+                                // Proxy Roblox API calls from worker to real RobloxAPI
+                                const { id, fn, args } = msg;
+                                (async () => {
+                                    let result, success = true, error = null;
+                                    try {
+                                        if (RobloxAPI[fn]) {
+                                            result = await RobloxAPI[fn](... (Array.isArray(args) ? args : []));
+                                        } else {
+                                            throw new Error('Unknown RobloxAPI function: ' + fn);
+                                        }
+                                    } catch (err) {
+                                        success = false; error = err.message;
+                                    }
+                                    try { loopWorker && loopWorker.postMessage({ type:'backendResult', id, success, result, error }); } catch(_){}
+                                })();
+                            }
+                        };
+                    } catch (err) {
+                        console.warn('Worker creation failed, falling back to inline execution:', err);
+                        loopWorker = null;
+                    }
+                }
+            }
+
+            isRunning = true; shouldStop = false;
+            if (loopWorker) {
+                const runBtn = document.getElementById('runBtn');
+                const stopBtn = document.getElementById('stopBtn');
+                if (runBtn && stopBtn) { runBtn.style.display='none'; stopBtn.style.display='block'; }
+                loopWorker.postMessage({ type:'run', code });
+            } else {
+                // Fallback: inline execution (60->120 fps improved below)
+                try {
+                    const needsIIFE = !/(async\s*function|\(async\s*\()/ .test(code);
+                    const wrapped = needsIIFE ? `(async()=>{\n${code}\n})()` : code;
+                    await executeCodeSafely(wrapped, 120); // request 120 fps
+                } catch (error) {
+                    console.error('Blockly execution error:', error);
+                } finally {
+                    isRunning = false;
+                    const runBtn = document.getElementById('runBtn');
+                    const stopBtn = document.getElementById('stopBtn');
+                    if (runBtn && stopBtn) { runBtn.style.display='block'; stopBtn.style.display='none'; }
+                }
+            }
         }
-    }
 
         // Simplified loop transformation: inject await checkContinue() at start of each loop body
         function transformLoopsToAsync(code){
@@ -1580,12 +1650,12 @@
                 .replace(/while\s*\([^)]*\)\s*\{/g, m=> m + "\n    await checkContinue();");
         }
 
-        async function executeCodeSafely(code) {
+        async function executeCodeSafely(code, targetFps = 60) {
             shouldStop = false; // Reset stop flag
-            
+            const fps = Math.min(Math.max(targetFps, 1), 240); // clamp 1-240
             // Maximum execution time and frame rate settings
             const MAX_EXECUTION_TIME = 10000; // 10 seconds max
-            const FRAME_DELAY = Math.floor(1000 / 60); // 60 FPS = ~16.67ms per frame
+            const FRAME_DELAY = Math.floor(1000 / fps); // dynamic FPS
             
             // Transform loops to be async and non-blocking
             let safeCode = transformLoopsToAsync(code);
@@ -1642,7 +1712,7 @@
                             throw new Error('Maximum iterations exceeded - possible infinite loop detected');
                         }
                         
-                        // Yield control to prevent freezing - 60 FPS timing
+                        // Yield control to prevent freezing - dynamic FPS timing
                         await new Promise(resolve => setTimeout(resolve, ${FRAME_DELAY}));
                         return true;
                     };
@@ -2263,5 +2333,19 @@
     // --- End Custom Column/Table Based Serialization ---
     showCode();
     </script>
+        <!--
+        Worker Loop Architecture Notes:
+        - File: loop_worker.js handles high-frequency (target 120 FPS) loop execution.
+        - Main thread decides to offload when generated code contains 'while(' or 'for('.
+        - RobloxAPI calls inside worker are proxied: worker sends {type:'backendCall', fn, args}; main thread invokes real RobloxAPI and returns result.
+        - Output from worker forwarded as {type:'log', entry} and rendered through existing hynthera_output pipeline.
+        - Fallback: If Worker unsupported, inline executeCodeSafely() runs with dynamic FPS (default 120 when requested).
+        - Debug toggle: window.__ROBLOX_DEBUG = false; to silence per-call logging.
+        Next Potential Enhancements:
+            * Add progress HUD showing loop iteration rate.
+            * Persist __ROBLOX_DEBUG preference in localStorage.
+            * Add block that explicitly requests worker or sets desired FPS.
+            * Surface backend error stack traces (if available) in a collapsible panel.
+        -->
 </body>
 </html>
