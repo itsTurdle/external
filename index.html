@@ -182,7 +182,7 @@
         </div>
     </div>
     <script>
-    window.__APP_VERSION = '1.1.2';
+    window.__APP_VERSION = '1.1.3';
         const vb = document.getElementById('versionBanner');
         if (vb) vb.textContent = '🎮 ROBLOX API v' + window.__APP_VERSION;
     </script>
@@ -411,8 +411,8 @@
             return '// Event: when start clicked\n' + statements;
         };
 
-        // Output Blocks
-    Blockly.Blocks['print_output'] = {
+        // Output Blocks (consolidated)
+        Blockly.Blocks['print_output'] = {
             init: function() {
                 this.appendValueInput("TEXT")
                     .setCheck(null)
@@ -429,7 +429,7 @@
                 return 'print(' + text + ');\n';
         };
 
-    Blockly.Blocks['warn_output'] = {
+        Blockly.Blocks['warn_output'] = {
             init: function() {
                 this.appendValueInput("TEXT")
                     .setCheck(null)
@@ -463,7 +463,7 @@
             return '// ' + t + '\n';
         };
 
-        // Roblox API Blocks - MOVED HERE TO BE DEFINED BEFORE WORKSPACE CREATION
+    // Roblox API & utility blocks
         
         // Get Game Service Block
         Blockly.Blocks['get_service'] = {
@@ -721,6 +721,20 @@
             return 'await RobloxAPI.setWalkSpeed(' + humanoid + ', ' + speed + ');\n';
         };
 
+        // Draw center line block (frontend helper -> backend drawLineMid)
+        Blockly.Blocks['drawline_mid'] = {
+            init: function(){
+                this.appendDummyInput().appendField('🖊 draw center line');
+                this.setPreviousStatement(true, null);
+                this.setNextStatement(true, null);
+                this.setColour('#4C97FF');
+                this.setTooltip('Draw a horizontal line across middle of screen');
+            }
+        };
+        Blockly.JavaScript['drawline_mid'] = function(){
+            return 'await RobloxAPI.drawLineMid();\n';
+        };
+
         console.log('✅ All Roblox API blocks have been defined!');
 
         const workspace = Blockly.inject('blocklyDiv', {
@@ -836,6 +850,9 @@
                     <block type="print_output"></block>
                     <block type="warn_output"></block>
                     <block type="comment"></block>
+                </category>
+                <category name="🎨 Drawing" colour="#4C97FF">
+                    <block type="drawline_mid"></block>
                 </category>
             </xml>
             `,
